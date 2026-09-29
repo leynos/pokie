@@ -54,16 +54,14 @@ def _makefile_variable(name: str) -> str:
 
 def test_pylint_tier_pins_the_interpreter() -> None:
     """The tier must name the interpreter whose grammar it parses with."""
-    assert _makefile_variable("PYLINT_PYTHON") == "pypy@3.12", (
-        "PYLINT_PYTHON must stay pypy@3.12: bare pypy follows uv's next release"
-    )
+    why = "PYLINT_PYTHON must stay pypy@3.12: bare pypy follows uv's next release"
+    assert _makefile_variable("PYLINT_PYTHON") == "pypy@3.12", why
 
 
 def test_pylint_tier_runs_the_pinned_release_on_managed_python() -> None:
     """The tier must run the pinned Pylint on a uv-managed interpreter."""
-    assert _makefile_variable("PYLINT_VERSION") == "4.0.9", (
-        "PYLINT_VERSION must pin the reviewed Pylint release exactly"
-    )
+    why = "PYLINT_VERSION must pin the reviewed Pylint release exactly"
+    assert _makefile_variable("PYLINT_VERSION") == "4.0.9", why
     command = _makefile_variable("PYLINT")
     for fragment in (
         "tool run --managed-python --python $(PYLINT_PYTHON)",
@@ -76,10 +74,11 @@ def test_pylint_reports_unparsable_modules() -> None:
     """The Pylint policy must not disable `syntax-error`."""
     config = tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     disabled = config["tool"]["pylint"]["messages control"]["disable"]
-    assert "syntax-error" not in disabled, (
+    why = (
         "pyproject.toml must not disable syntax-error: a module the interpreter "
         f"cannot parse would then be skipped silently; disable={disabled!r}"
     )
+    assert "syntax-error" not in disabled, why
 
 
 def _make_quoted(path: Path) -> str:
@@ -152,12 +151,8 @@ def test_configured_pylint_fails_on_an_unparsable_module(tmp_path: Path) -> None
     failed = _run_configured_pylint(broken)
     passed = _run_configured_pylint(clean)
 
-    assert failed.returncode != 0, (
-        f"a module Pylint cannot parse must fail the tier: {failed.stdout}"
-    )
-    assert "syntax-error" in failed.stdout, (
-        f"the failure must be the parse error: {failed.stdout}{failed.stderr}"
-    )
-    assert passed.returncode == 0, (
-        f"a clean module must pass the tier: {passed.stdout}{passed.stderr}"
-    )
+    failed_output = f"{failed.stdout}{failed.stderr}"
+    passed_output = f"{passed.stdout}{passed.stderr}"
+    assert failed.returncode != 0, f"a parse error must fail the tier: {failed_output}"
+    assert "syntax-error" in failed.stdout, f"expected the parse error: {failed_output}"
+    assert passed.returncode == 0, f"a clean module must pass: {passed_output}"
