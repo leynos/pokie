@@ -14,7 +14,7 @@ dev = [
     "pip-audit",
     "ruff",
     "pyright",
-    "ty==0.0.56",
+    "ty==0.0.84",
     "pytest-timeout",
     "pytest-xdist",
 ]
