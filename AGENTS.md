@@ -161,8 +161,6 @@
 - Run relevant unit, behavioural, property, and end-to-end suites before and after
   each change.
 
-
-
 ## Markdown guidance
 
 - Validate Markdown files using `make markdownlint`. This also runs the
