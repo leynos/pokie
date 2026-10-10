@@ -205,7 +205,7 @@ interface belongs in the developer guide. See pokie-design.md §6.
   - Requires 4.2.2.
   - See pokie-design.md §10 and design-contracts.md §1.
   - Success: the representative user-record program prints `1 2`;
-    side-effect limits, nested inner patterns, and broken extensions have
+    limits on side effects, nested inner patterns, and broken extensions have
     separate observable outcomes across inline and file invocation.
 
 ## 5. Demonstrate installable library-compatible workflows

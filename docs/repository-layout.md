@@ -21,6 +21,6 @@ Table 1: Current paths and ownership boundaries.
 
 Keep tests in `tests/`, group future implementation by feature, and document
 new runtime interfaces in the design/contracts and developer guide. Generated
-environments, caches, builds, and diagram outputs are not authoritative source.
-The optional Rust import in the scaffold does not establish a Rust compiler or
-extension implementation.
+environments, caches, builds, and diagram outputs are not authoritative
+sources. The optional Rust import in the scaffold does not establish a Rust
+compiler or extension implementation.

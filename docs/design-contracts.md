@@ -1,6 +1,6 @@
 # pokie design contracts
 
-Status: proposed v0.1. Updated: 2026-10-09. Audience: implementers and design
+Status: proposed v0.1. Updated: 2026-10-10. Audience: implementers and design
 reviewers.
 
 These structured artefacts precede the prose design in `docs/pokie-design.md`.
@@ -59,12 +59,22 @@ Control = NextRecord(span) | ExitProgram(span)
 Each pattern node also carries a span. `Control` nodes can occur inside rule
 suites and nested loops, but not nested function or class definitions. Ordinary
 Python nodes remain opaque except where lexical substitutions, binding
-analysis, or control-transfer validation require inspection. Capture view
-selection follows the effective root pattern, looking through `As` wrappers:
-mapping roots receive named groups; other roots receive the positional tuple.
-Alternatives must use one view consistently and bind the same names. There is
-no implicit singleton unwrapping: `case int(n),:` matches one captured string
-through a one-element sequence, whereas `case captures:` binds the tuple.
+analysis, or control-transfer validation require inspection. Canonical capture
+view selection is recursive: unwrap `As` patterns; for an `Alternative`, derive
+each branch's view recursively and require all branches to agree; a mapping
+root selects named groups, and any other root selects the positional tuple.
+Mixed named and positional alternatives are rejected during static validation.
+Alternatives must also bind the same names. For example, this proposed case
+uses the named capture mapping:
+
+```text
+case {"kind": "a", "value": x} | {"kind": "b", "value": x}:
+```
+
+An alternative such as `{"kind": "a", "value": x} | ("b", x)` is rejected
+because its branches require different capture views. There is no implicit
+singleton unwrapping: `case int(n),:` matches one captured string through a
+one-element sequence, whereas `case captures:` binds the tuple.
 
 ## 3. Adapter result and registration
 
@@ -116,11 +126,12 @@ pokie --help
 pokie --version
 ```
 
-Exactly one program source is required. No input operands means standard input;
-`-` selects it explicitly, at most once. Other operands name files read
-sequentially. Program files use UTF-8; input defaults to UTF-8 with strict
-decoding. Standard output contains only user output. Diagnostics use standard
-error and identify source spans or input filename/record number.
+Exactly one program source is required. If no input operands are present, the
+program reads standard input; `-` selects it explicitly, at most once. Other
+operands name files read sequentially. Program files use UTF-8; input defaults
+to UTF-8 with strict decoding. Standard output contains only user output.
+Diagnostics use standard error and identify source spans or input filename or
+record number.
 
 | Outcome                                                         | Process status | `end:` behaviour                     |
 | --------------------------------------------------------------- | -------------- | ------------------------------------ |

@@ -61,7 +61,7 @@ When the Rust extension is enabled, `lint-rust` runs:
 - Whitaker with `whitaker --all`.
 
 The generated Makefile never installs Whitaker; it fails with a clear error
-when the wrapper is missing. Install it yourself with `whitaker-installer` (see
+when the wrapper is missing. Install Whitaker with `whitaker-installer` (see
 <https://github.com/leynos/whitaker>) before running local Rust linting.
 
 ## Dependency Auditing

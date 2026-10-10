@@ -22,7 +22,7 @@ currently contains a generated greeting package.
 - **Deferred:** excluded from the initial release; promotion requires a
   decision backed by evidence.
 
-The terms of reference governs product scope. The design explains proposed
+The terms of reference govern product scope. The design explains proposed
 mechanisms. `docs/design-contracts.md` is the canonical structured contract for
 the design. ADRs record individual choices; their status is explicit. The
 roadmap sequences evidence and delivery rather than changing scope.
