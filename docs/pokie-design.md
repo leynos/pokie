@@ -1,6 +1,6 @@
 # pokie technical design
 
-Status: proposed v0.1. Updated: 2026-10-09. Audience: implementers, reviewers,
+Status: proposed v0.1. Updated: 2026-10-10. Audience: implementers, reviewers,
 and contributors evaluating the language.
 
 Product scope comes from `docs/terms-of-reference.md`; terminology comes from
@@ -144,6 +144,45 @@ initialization, input, guard, adapter, or action exception stops execution
 without running `end:`. Final aggregates are therefore not printed as
 apparently complete results after an aborted run. Resource cleanup belongs in
 context managers rather than `end:`.
+
+The driver runs the preamble and `start:` before delivering records in order.
+For each record, it evaluates rules in order; matching may invoke registered
+adapters, and accepted bindings lead to an action while rejection discards
+candidate bindings. External side effects are not rolled back. An action may
+continue normally, skip the remaining rules with `next`, or stop normally with
+`exit`. The driver runs `end:` after normal EOF or pokie `exit`; unexpected
+failures skip `end:`.
+
+```mermaid
+sequenceDiagram
+    accTitle: Pokie record processing and lifecycle
+    accDescr {
+        The driver runs the preamble and start block, then processes records
+        in order through rule matching and adapters. Matching accepts and
+        commits bindings or rejects them; actions continue, skip rules with
+        next, or stop with exit. The end block runs after normal EOF or
+        pokie exit. Unexpected failures skip it.
+    }
+    participant R as RecordReader
+    participant P as PersistentProgram
+    participant M as RuleMatcher
+    participant A as AdapterRegistry
+    participant D as Driver
+
+    D->>P: run preamble and start
+    loop each record
+        R->>D: deliver record
+        D->>P: evaluate ordered rules
+        P->>M: match predicate and case
+        M->>A: attempt(adapter_id, subject)
+        A-->>M: Match(value) or NoMatch
+        M-->>P: accepted bindings or rejection
+        P-->>D: action, next, or exit
+    end
+    D->>P: run end after EOF or exit
+```
+
+**Figure 1:** Proposed record processing and lifecycle sequence.
 
 ### 4.3. Control transfer
 
