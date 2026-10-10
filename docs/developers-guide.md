@@ -1,6 +1,23 @@
 # Developer guide
 
-This guide explains the contributor workflow for the generated project.
+This guide explains the contributor workflow for pokie's development scaffold.
+The interpreter is not implemented. Begin with the
+[technical design](pokie-design.md), `docs/pokie-design.md`, the
+[design contracts](design-contracts.md), `docs/design-contracts.md`, and the
+[repository layout](repository-layout.md), `docs/repository-layout.md`. The
+[contents](contents.md) indexes proposed decision records and the roadmap.
+
+## Design and interface maintenance
+
+Record semantics and compiler boundaries live in the design and structured
+contracts, not in generated scaffold modules. Proposed ADRs require explicit
+ratification and evidence; do not describe their capabilities as delivered.
+Update the users' guide when a roadmap slice ships user-visible behaviour.
+
+Before adding runtime helpers, search for existing equivalents. New helpers
+must serve a defined compiler or execution feature, with scope and reuse policy
+documented in the design/contracts. Keep extension registration interfaces
+synchronized with ADR 003 and this guide when they are selected.
 
 ## Local workflow
 
@@ -64,14 +81,12 @@ actions under `.github/`.
   the result to the `CODESCENE_CLI_SHA256` repository variable.
 
 - `.github/workflows/mutation-testing.yml` runs daily at 09:30 UTC and supports
-  manual dispatch. It delegates to reusable workflows from `leynos/shared-actions`;
-  stagger the generated cron schedule before adopting it alongside other
-  repositories.
+  manual dispatch. It delegates to reusable workflows from
+  `leynos/shared-actions`; stagger the generated cron schedule before adopting
+  it alongside other repositories.
 
   The mutmut job is generated only when the minimum Python version is 3.13 or
   newer because the shared workflow helpers require Python 3.13 or newer.
-
-
 
 - `.github/actions/build-wheels` wraps `cibuildwheel` with `uvx` and uploads
   architecture-specific wheel artefacts.

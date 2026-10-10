@@ -1,6 +1,26 @@
-# pokie Users' Guide
+# pokie users' guide
 
-## Quality Gates
+This guide covers the current development scaffold and its validation commands.
+Pokie's interpreter and command-line interface are not implemented. The
+language preview is in `README.md`; proposed user behaviour belongs to
+`docs/pokie-design.md` and `docs/design-contracts.md`, pending delivery through
+`docs/roadmap.md`.
+
+## Run the scaffold
+
+From the repository root, install development dependencies and run the existing
+greeting API:
+
+```bash
+uv sync --group dev
+uv run python -c 'from pokie import hello; print(hello())'
+```
+
+Expected output is `hello from Python`. The current package requires Python
+3.14 or newer. This example verifies the scaffold rather than any planned
+record-processing behaviour.
+
+## Quality gates
 
 Generated projects use `make all` as the standard local quality gate. It runs
 these targets in order:
@@ -18,8 +38,8 @@ these targets in order:
 
 The `lint-python` target runs Ruff, then Interrogate with
 `interrogate --fail-under 100 $(PYTHON_TARGETS)` to enforce 100% docstring
-coverage for the Python targets, then Pylint on PyPy 3.12. Pylint runs
-as a pinned release (`PYLINT_VERSION`) through `uv tool run` on the managed
+coverage for the Python targets, then Pylint on PyPy 3.12. Pylint runs as a
+pinned release (`PYLINT_VERSION`) through `uv tool run` on the managed
 interpreter named by `PYLINT_PYTHON` (`pypy@3.12`), and a module PyPy cannot
 parse fails the lint rather than being skipped.
 
@@ -41,8 +61,8 @@ When the Rust extension is enabled, `lint-rust` runs:
 - Whitaker with `whitaker --all`.
 
 The generated Makefile never installs Whitaker; it fails with a clear error
-when the wrapper is missing. Install it yourself with `whitaker-installer`
-(see <https://github.com/leynos/whitaker>) before running local Rust linting.
+when the wrapper is missing. Install Whitaker with `whitaker-installer` (see
+<https://github.com/leynos/whitaker>) before running local Rust linting.
 
 ## Dependency Auditing
 
@@ -53,30 +73,25 @@ Dependabot pull requests; a weekly scheduled audit on the default branch is the
 compensating control. Rust-enabled projects also run `cargo audit` from the
 `rust_extension` crate directory.
 
-
 ## Scheduled Mutation Testing
 
 The `.github/workflows/mutation-testing.yml` workflow runs mutation testing
 daily at 09:30 UTC and can also be started manually from GitHub Actions. Adjust
 the generated cron schedule to stagger it against other repositories.
 
-
 For projects whose minimum Python version is 3.13 or newer, the workflow runs
-mutmut against `pokie/`. The Python mutation job is omitted for
-older baselines because the shared workflow helpers require Python 3.13 or
-newer.
-
-
-
+mutmut against `pokie/`. The Python mutation job is omitted for older baselines
+because the shared workflow helpers require Python 3.13 or newer.
 
 ## Rust Test Behaviour
 
-Rust-enabled projects use `cargo nextest run` when `cargo-nextest` is available.
-If `cargo-nextest` is not installed, the generated `test` target falls back to
-`cargo test`. Rust documentation tests still run through `cargo test --doc`.
+Rust-enabled projects use `cargo nextest run` when `cargo-nextest` is
+available. If `cargo-nextest` is not installed, the generated `test` target
+falls back to `cargo test`. Rust documentation tests still run through
+`cargo test --doc`.
 
-If cargo is missing from the local environment, generated Rust test targets fail
-early with a clear error instead of falling through to an unusable `cargo`
+If cargo is missing from the local environment, generated Rust test targets
+fail early with a clear error instead of falling through to an unusable `cargo`
 invocation.
 
 ## Local GitHub Actions Validation
@@ -90,9 +105,9 @@ make test WITH_ACT=1
 ```
 
 This sets `RUN_ACT_VALIDATION=1` for the pytest invocation, enabling the
-act-based integration tests that run the generated CI workflow locally.
-Omitting `WITH_ACT` (or setting it to `0`) skips act validation; the rest of
-the test suite runs unchanged.
+act-based integration tests that run the generated CI workflow locally. Omitting
+`WITH_ACT` (or setting it to `0`) skips act validation; the rest of the test
+suite runs unchanged.
 
 ## Cleaning Local State
 
