@@ -8,9 +8,18 @@ behind the package's public API.
 
 """
 
-from __future__ import annotations
-
 
 def hello() -> str:
-    """Return a friendly greeting from Python."""
+    """Return a friendly greeting from Python.
+
+    Returns
+    -------
+    str
+        The scaffold greeting, ``"hello from Python"``.
+
+    Examples
+    --------
+    >>> hello()
+    'hello from Python'
+    """
     return "hello from Python"

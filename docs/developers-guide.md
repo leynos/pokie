@@ -21,18 +21,50 @@ synchronized with ADR 003 and this guide when they are selected.
 
 ## Local workflow
 
-The public entrypoint for formatting, linting, typechecking, tests, and
-spelling is `make all`. Narrower Make targets may be invoked when investigating
-a specific failure, and changes should be reconciled with the aggregate gate
-before being considered complete.
+The public entrypoint for formatting, linting, type checking, tests, Markdown
+checks, dependency auditing, and Makefile validation is `make all`. It runs
+these targets in sequence. Narrower Make targets may be used while
+investigating a failure, then reconcile the changes with the aggregate gate.
 
-`make lint` runs Ruff, `interrogate --fail-under 100 $(PYTHON_TARGETS)` for
-100% docstring coverage across `$(PYTHON_TARGETS)`, and Pylint.
+The lint standards follow
+[`leynos/episodic` at `e43240306dec55437547c8f43cf0c6a5ed040fd2`](https://github.com/leynos/episodic/tree/e43240306dec55437547c8f43cf0c6a5ed040fd2),
+using the shared `df12-python-lints` v0.4.0 package and its `df12-skylos` and
+`df12-duplication` helper commands. Keep those helpers as shared tools; do not
+copy their implementation scripts into this repository. The `df12-duplication`
+helper installs the configured Nose 0.20.0 detector before running its
+repository checks.
 
-`make typecheck` runs `ty`, pinned in the dev dependency group (`ty==0.0.56`):
-unpinned installations broke repositories when ty 0.0.56 landed. Bump the pin
-deliberately — update the version and fix any new diagnostics in the same pull
-request.
+`PYTHON_TARGETS` discovers tracked and non-ignored, untracked `.py` and `.pyi`
+files across the repository, including tests, scripts, and local GitHub
+actions. Ruff, Interrogate, Pylint, the DF12 Pylint rules, and `ty` cover those
+Python files. Interrogate requires 100% docstring coverage across that full
+target set. `ambrleaks` checks the test suite.
+
+The shared Skylos command scans the checkout for dead code. Skylos 4.33.2
+classifies test paths as entry points, so pinned Vulture 2.16 also checks
+`tests/` at its 60% minimum confidence. It exempts only `test_*` and
+`pytestmark` names, while still checking their bodies. The shared duplication
+command checks supported source files under `pokie/`, `tests/`, `scripts/`, and
+`.github/`; documentation is outside its roots. These source tools do not
+analyse YAML syntax. `yamllint` checks YAML under `.github`, `action-validator`
+checks local action manifests, and Actionlint checks workflows plus adapted
+local actions; Actionlint also checks shell steps through ShellCheck. The local
+`scripts/action_workflow.py` adapter converts composite action inputs and steps
+into a workflow for Actionlint validation. Reuse it for this conversion
+purpose; it is not a source scanner or replacement for the shared lint tools.
+
+Ruff and `ty` are pinned to `0.16.8` and `0.0.56`, respectively, in the
+Makefile, development dependencies, and Continuous Integration (CI). Bump
+either deliberately and update all locations together, then resolve any new
+diagnostics in the same change.
+
+Mutation runs copy `scripts/`, `.github/`, `Makefile`, and `pyproject.toml`
+through `[tool.mutmut] also_copy` so the tooling-contract tests retain their
+inputs in the isolated mutation tree.
+
+`make check-fmt` checks Python formatting with Ruff and Markdown formatting with
+`mdtablefix` v0.6.1. CI installs that formatter through the shared
+`install-mdtablefix` action. Run `make fmt` to apply both formatters.
 
 Run `make audit` as the dependency vulnerability gate. It runs `pip-audit` for
 Python dependencies, and Rust-enabled projects also run `cargo audit` from the
@@ -56,19 +88,25 @@ The generated repository includes GitHub Actions workflows and local composite
 actions under `.github/`.
 
 - `.github/workflows/ci.yml` runs on pushes to `main` and on pull requests. It
-  sets up Python 3.13, installs `uv`, validates the generated `Makefile` with
-  `mbake`, runs `make build`, `make check-fmt`, `make lint` (Ruff +
-  `interrogate --fail-under 100 $(PYTHON_TARGETS)` + Pylint), `make typecheck`,
-  `make spelling`, and `make audit` except for Dependabot pull requests via
-  `if: github.actor != 'dependabot[bot]'`, then delegates coverage generation
-  to the shared coverage action. When the Rust extension is enabled, it also
-  sets up Rust, installs Rust lint and test tools, and passes
-  `rust_extension/Cargo.toml` to coverage.
+  sets up Python 3.14, installs `uv`, validates the Makefile with `mbake`, and
+  runs the formatting, lint, type-check, Markdown, spelling, and dependency
+  audit gates. Ruff 0.16.8 and ty 0.0.56 are pinned in the workflow to match
+  the Makefile and development dependencies. Markdown formatting is checked
+  with mdtablefix 0.6.1, installed through the shared `install-mdtablefix`
+  action. The audit is skipped for Dependabot pull requests via
+  `if: github.actor != 'dependabot[bot]'`; a scheduled workflow provides the
+  compensating check. Coverage generation is delegated to the shared coverage
+  action.
 - `.github/workflows/audit.yml` runs `make audit` against the default branch
   weekly as the compensating control for the Dependabot CI bypass.
-- `.github/workflows/act-validation.yml` runs rendered workflow validation in a
-  separate workflow. It installs `act`, checks Docker availability, and runs
-  `make test WITH_ACT=1` outside the coverage path.
+- `.github/workflows/act-validation.yml` installs `act`, checks Docker
+  availability, and runs only the dedicated wheel smoke workflow through
+  `make test-act`. `make test WITH_ACT=1` also selects this smoke test locally
+  after pytest. Static workflow checks already run in `make lint`, so the act
+  workflow does not repeat the CI lint and test suite.
+- `.github/workflows/act-smoke.yml` builds a pure Python wheel using the local
+  wheel action and imports the built package. This isolates the behaviour that
+  act validates from the rest of CI.
 - `.github/workflows/release.yml` publishes wheels when a `v*.*.*` tag is
   pushed. It builds a pure Python wheel, creates a GitHub release with
   generated release notes, downloads wheel artefacts, and uploads them to the
@@ -102,13 +140,13 @@ upload.
 
 ## Shared spelling configuration
 
-Run `make spelling` to enforce en-GB-oxendict spelling. The shared
-`typos-config-builder` gate regenerates `typos.toml` from the live estate
-dictionary in `leynos/agent-helper-scripts` and the `typos.local.toml` overlay
-on every run, then checks tracked Markdown. A word added to the shared
-dictionary therefore needs no change here, and `typos.toml` must never be drift
-checked in continuous integration. `typos.toml` is therefore a generated
-artefact and is ignored by Git, as is the local cache that keeps the gate
-usable when the authority is temporarily unreachable. Add only narrow
-project-specific terms and exclusions to `typos.local.toml`; never edit
-generated `typos.toml` by hand.
+Run `make spelling` to enforce en-GB-oxendict spelling in Markdown and code.
+The shared `typos-config-builder` v0.1.2 gate regenerates `typos.toml` from the
+live estate dictionary and the `typos.local.toml` overlay, then checks the
+whole repository with `--scope all`. A word added to the shared dictionary
+therefore needs no change here, and `typos.toml` must never be drift checked in
+continuous integration. It is a generated artefact and is ignored by Git, as is
+the local cache that keeps the gate usable when the authority is temporarily
+unreachable. Add only narrow project-specific terms and exclusions to
+`typos.local.toml`; its `markdown_only` patterns apply only to Markdown, so
+they do not narrow code checking. Never edit generated `typos.toml` by hand.
