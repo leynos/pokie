@@ -44,7 +44,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y shellcheck
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
-          npm install -g @action-validator/core@0.9.0 @action-validator/cli@0.9.0
+          npm install -g @action-validator/core@0.6.0 @action-validator/cli@0.6.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Validate Makefile

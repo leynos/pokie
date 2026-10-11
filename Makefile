@@ -19,6 +19,7 @@ TYPOS_CONFIG_BUILDER = env $(UV_ENV) $(UV) tool run --python 3.14 --from \
 	"git+https://github.com/leynos/typos-config-builder.git@$(TYPOS_CONFIG_BUILDER_VERSION)" \
 	typos-config-builder
 WITH_ACT ?= 0
+ACT_IMAGE ?= ghcr.io/catthehacker/ubuntu:act-24.04
 PYTEST_XDIST_WORKERS ?= auto
 # Include tracked and new source anywhere, including hidden action directories.
 PYTHON_TARGETS ?= $(shell git ls-files --cached --others --exclude-standard '*.py' '*.pyi')
@@ -151,7 +152,8 @@ test: build $(VENV_TOOLS) ## Run tests
 # Static workflow checks belong to lint-actions. act only exercises a wheel
 # build and import, so it cannot recursively repeat the normal CI gates.
 test-act: ## Exercise the pure-wheel action using act (requires Docker)
-	act workflow_dispatch -W .github/workflows/act-smoke.yml -j pure-wheel
+	act workflow_dispatch -W .github/workflows/act-smoke.yml -j pure-wheel \
+	  -P "ubuntu-latest=$(ACT_IMAGE)"
 
 validate: ## Validate the Makefile
 	mbake validate Makefile

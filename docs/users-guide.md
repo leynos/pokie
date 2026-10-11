@@ -127,6 +127,10 @@ separately as part of `make lint`; the act validation workflow does not repeat
 those checks or the regular test suite. Omitting `WITH_ACT` (or setting it to
 `0`) skips act validation; the rest of the test suite runs unchanged.
 
+The runner image defaults to `ghcr.io/catthehacker/ubuntu:act-24.04`. Pass
+`ACT_IMAGE=...` to Make to use another compatible local image. The explicit
+platform mapping keeps act noninteractive in CI.
+
 ## Cleaning Local State
 
 Run `make clean` to remove local build and cache outputs, including `.venv`,

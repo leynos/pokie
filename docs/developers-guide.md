@@ -103,7 +103,9 @@ actions under `.github/`.
   availability, and runs only the dedicated wheel smoke workflow through
   `make test-act`. `make test WITH_ACT=1` also selects this smoke test locally
   after pytest. Static workflow checks already run in `make lint`, so the act
-  workflow does not repeat the CI lint and test suite.
+  workflow does not repeat the CI lint and test suite. `ACT_IMAGE` defaults to
+  `ghcr.io/catthehacker/ubuntu:act-24.04` and is passed explicitly to act so
+  noninteractive CI never prompts for a runner image.
 - `.github/workflows/act-smoke.yml` builds a pure Python wheel using the local
   wheel action and imports the built package. This isolates the behaviour that
   act validates from the rest of CI.
