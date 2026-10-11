@@ -176,7 +176,7 @@ lint-actions: build $(ACTIONLINT) $(ACTION_VALIDATOR) ## Validate workflows and 
 	trap 'rm -f "$$workflow"' EXIT; find .github/actions -type f \( -name action.yml -o -name action.yaml \) -print | \
 	while IFS= read -r action; do \
 	  $(ACTION_VALIDATOR) "$$action"; \
-	  $(UV_ENV) $(UV) run python scripts/action_workflow.py "$$action" > "$$workflow"; \
+	  $(UV_ENV) $(UV) run --script scripts/action_workflow.py "$$action" > "$$workflow"; \
 	  $(ACTIONLINT) -stdin-filename "$$action" - < "$$workflow"; \
 	done
 

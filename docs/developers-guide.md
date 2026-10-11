@@ -52,6 +52,9 @@ local actions; Actionlint also checks shell steps through ShellCheck. The local
 `scripts/action_workflow.py` adapter converts composite action inputs and steps
 into a workflow for Actionlint validation. Reuse it for this conversion
 purpose; it is not a source scanner or replacement for the shared lint tools.
+Its PEP 723 metadata declares the Cyclopts and PyYAML dependencies; run it with
+`uv run --script scripts/action_workflow.py ACTION` outside the project
+environment.
 
 Ruff and `ty` are pinned to `0.16.8` and `0.0.56`, respectively, in the
 Makefile, development dependencies, and Continuous Integration (CI). Bump

@@ -1,11 +1,9 @@
 """Behavioural checks for composite action validation."""
 
+import os
 import shutil
 import subprocess  # ruff: ignore[suspicious-subprocess-import] - integration tests drive the installed Actionlint.
-import typing as typ
-
-if typ.TYPE_CHECKING:  # pragma: no cover - static fixture annotations only.
-    from pathlib import Path
+from pathlib import Path
 
 import pytest
 import yaml
@@ -56,6 +54,44 @@ def test_action_adapter_cli_emits_parseable_workflow(
     assert exit_info.value.code == 0, "Rendering valid YAML must exit successfully"
     workflow = yaml.safe_load(capsys.readouterr().out)
     why = "CLI output must be valid workflow YAML"
+    assert workflow["jobs"]["action"]["steps"] == [], why
+
+
+@pytest.mark.timeout(180)
+def test_action_adapter_runs_outside_project_environment(tmp_path: Path) -> None:
+    """The adapter's uv metadata must supply dependencies outside the project."""
+    adapter = tmp_path / "action_workflow.py"
+    shutil.copyfile(Path(__file__).parents[1] / "scripts/action_workflow.py", adapter)
+    action = tmp_path / "action.yml"
+    action.write_text(
+        "name: Example\nruns:\n  using: composite\n  steps: []\n", encoding="utf-8"
+    )
+    environment = os.environ.copy()
+    environment.pop("VIRTUAL_ENV", None)
+    uv = shutil.which("uv")
+    assert uv is not None, "Standalone script validation requires uv on PATH"
+    result = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - resolved uv command and generated fixture, no shell.
+        [
+            uv,
+            "run",
+            "--no-project",
+            "--python",
+            "3.14",
+            "--script",
+            str(adapter),
+            str(action),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=tmp_path,
+        env=environment,
+        timeout=120,
+    )
+    why = f"Standalone uv script must succeed: {result.stderr}"
+    assert result.returncode == 0, why
+    workflow = yaml.safe_load(result.stdout)
+    why = "Standalone action adapter must preserve an empty composite step list"
     assert workflow["jobs"]["action"]["steps"] == [], why
 
 

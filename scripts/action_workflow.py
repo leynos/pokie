@@ -1,3 +1,12 @@
+#!/usr/bin/env -S uv run --script
+# Match the repository's Python 3.14 lint and CI runtime.
+# /// script
+# requires-python = ">=3.14"
+# dependencies = [
+#     "cyclopts==4.25.2",
+#     "pyyaml==6.0.3",
+# ]
+# ///
 """Expose composite action steps to actionlint's workflow checks.
 
 The adapter preserves action inputs and steps; action-validator owns metadata
@@ -42,8 +51,8 @@ def action_workflow(path: Path) -> str:
 def main(path: Path) -> None:
     """Print an action's workflow representation for the lint pipeline.
 
-    For example, ``python scripts/action_workflow.py action.yml`` emits YAML
-    that can be piped to ``actionlint -`` without executing action steps.
+    For example, ``uv run --script scripts/action_workflow.py action.yml`` emits
+    YAML that can be piped to ``actionlint -`` without executing action steps.
     """
     print(action_workflow(path), end="")
 
