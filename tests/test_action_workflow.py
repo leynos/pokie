@@ -4,7 +4,7 @@ import shutil
 import subprocess  # ruff: ignore[suspicious-subprocess-import] - integration tests drive the installed Actionlint.
 import typing as typ
 
-if typ.TYPE_CHECKING:
+if typ.TYPE_CHECKING:  # pragma: no cover - static fixture annotations only.
     from pathlib import Path
 
 import pytest
@@ -30,14 +30,16 @@ def test_action_adapter_preserves_shell_steps_and_inputs(tmp_path: Path) -> None
         encoding="utf-8",
     )
     workflow = yaml.safe_load(action_workflow(path))
-    assert workflow["on"]["workflow_dispatch"]["inputs"]["output"] == {
+    expected_inputs = {
         "description": "Output directory",
         "default": "dist",
         "type": "string",
-    }, "Action inputs must remain available to actionlint's expression checks"
-    assert workflow["jobs"]["action"]["steps"] == [
-        {"shell": "bash", "run": 'echo "${{ inputs.output }}"'}
-    ], "The adapter must preserve the executable steps without escaping expressions"
+    }
+    inputs = workflow["on"]["workflow_dispatch"]["inputs"]
+    assert inputs["output"] == expected_inputs, "Actionlint must see the action inputs"
+    expected_steps = [{"shell": "bash", "run": 'echo "${{ inputs.output }}"'}]
+    steps = workflow["jobs"]["action"]["steps"]
+    assert steps == expected_steps, "Actionlint must see unchanged executable steps"
 
 
 def test_action_adapter_cli_emits_parseable_workflow(
@@ -53,9 +55,8 @@ def test_action_adapter_cli_emits_parseable_workflow(
         app([str(path)])
     assert exit_info.value.code == 0, "Rendering valid YAML must exit successfully"
     workflow = yaml.safe_load(capsys.readouterr().out)
-    assert workflow["jobs"]["action"]["steps"] == [], (
-        "CLI output must be valid workflow YAML"
-    )
+    why = "CLI output must be valid workflow YAML"
+    assert workflow["jobs"]["action"]["steps"] == [], why
 
 
 @pytest.mark.parametrize("is_valid", [True, False], ids=["valid", "invalid-input"])
@@ -89,6 +90,5 @@ def test_actionlint_checks_adapted_action_expressions(
         check=False,
         timeout=30,
     )
-    assert (result.returncode == 0) == is_valid, (
-        f"Actionlint must validate composite expressions: {result.stdout}"
-    )
+    why = f"Actionlint must validate composite expressions: {result.stdout}"
+    assert (result.returncode == 0) == is_valid, why

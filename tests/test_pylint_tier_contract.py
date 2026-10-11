@@ -176,9 +176,8 @@ def test_tool_versions_match_make_dependencies_and_ci(tool: str) -> None:
     workflow = yaml.safe_load(
         (_REPO_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     )
-    assert workflow["jobs"]["lint-test"]["env"][f"{tool.upper()}_VERSION"] == version, (
-        "CI must install the same version that Make executes"
-    )
+    ci_version = workflow["jobs"]["lint-test"]["env"][f"{tool.upper()}_VERSION"]
+    assert ci_version == version, "CI must install the version that Make executes"
 
 
 def test_python_discovery_includes_new_scripts_and_action_code(tmp_path: Path) -> None:
@@ -209,9 +208,8 @@ def test_python_discovery_includes_new_scripts_and_action_code(tmp_path: Path) -
         "@printf '%s\\n' $(PYTHON_TARGETS)", directory=tmp_path, timeout=30
     )
     assert result.returncode == 0, f"Source discovery must succeed: {result.stderr}"
-    assert set(result.stdout.splitlines()) == paths, (
-        "Every production, test, script, workflow and action source must be linted"
-    )
+    why = "Every production, test, script, workflow and action source must be linted"
+    assert set(result.stdout.splitlines()) == paths, why
 
 
 @pytest.mark.timeout(180)
@@ -249,6 +247,5 @@ def test_duplication_gate_sees_every_source_area(tmp_path: Path) -> None:
     assert result.returncode == 2, "Make must fail when the detector blocks"
     assert "duplicate code:" in result.stdout, "A valid family must be reported"
     for root in roots:
-        assert f"{root}/sample.py" in result.stdout, (
-            f"Every area must be reported: {result.stdout} {result.stderr}"
-        )
+        why = f"Every area must be reported: {result.stdout} {result.stderr}"
+        assert f"{root}/sample.py" in result.stdout, why

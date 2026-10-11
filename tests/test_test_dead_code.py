@@ -6,7 +6,7 @@ import typing as typ
 
 import pytest
 
-if typ.TYPE_CHECKING:
+if typ.TYPE_CHECKING:  # pragma: no cover - static fixture annotations only.
     from pathlib import Path
 
 
@@ -36,6 +36,5 @@ def test_test_helpers_are_checked(tmp_path: Path, case: str) -> None:
         timeout=30,
     )
     expected = 0 if case == "live-helper" else 3
-    assert result.returncode == expected, (
-        f"Dead test helpers must fail without exempting their bodies: {result.stdout}"
-    )
+    why = f"Dead test helpers must fail without exempting bodies: {result.stdout}"
+    assert result.returncode == expected, why
