@@ -49,10 +49,14 @@ command checks supported source files under `pokie/`, `tests/`, `scripts/`, and
 analyse YAML syntax. `yamllint` checks YAML under `.github`, `action-validator`
 checks local action manifests, and Actionlint checks workflows plus adapted
 local actions; Actionlint also checks shell steps through ShellCheck. The local
-`scripts/action_workflow.py` adapter converts composite action inputs and steps
-into a workflow for Actionlint validation. Reuse it for this conversion
-purpose; it is not a source scanner or replacement for the shared lint tools.
-Its PEP 723 metadata declares the Cyclopts and PyYAML dependencies; run it with
+`scripts/action_workflow.py` adapter projects composite action inputs and steps
+into a workflow for Actionlint. The `lint-actions` loop runs `action-validator`
+for every action, then pipes the adapter's output to Actionlint only when it
+contains a composite workflow; valid Node and Docker actions produce no
+projection. The adapter reports file, YAML, and minimal-shape errors with the
+manifest path. Its pure projection helper is scoped to this Actionlint bridge,
+not a general action schema validator. PEP 723 metadata declares its Cyclopts
+and PyYAML dependencies; run it with
 `uv run --script scripts/action_workflow.py ACTION` outside the project
 environment.
 

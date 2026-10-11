@@ -19,10 +19,11 @@ jobs:
         with:
           python-version: '3.14'
           artifact-name: wheels-smoke
+          out-dir: 'wheel output'
           upload-artefact: 'false'
       - name: Import built package
         run: |
           uv venv smoke-env --python 3.14
-          uv pip install --python smoke-env/bin/python dist/*.whl
-          cd dist
+          uv pip install --python smoke-env/bin/python "wheel output"/*.whl
+          cd "wheel output"
           ../smoke-env/bin/python ../scripts/wheel_smoke.py

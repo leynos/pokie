@@ -177,7 +177,9 @@ lint-actions: build $(ACTIONLINT) $(ACTION_VALIDATOR) ## Validate workflows and 
 	while IFS= read -r action; do \
 	  $(ACTION_VALIDATOR) "$$action"; \
 	  $(UV_ENV) $(UV) run --script scripts/action_workflow.py "$$action" > "$$workflow"; \
-	  $(ACTIONLINT) -stdin-filename "$$action" - < "$$workflow"; \
+	  if [ -s "$$workflow" ]; then \
+	    $(ACTIONLINT) -stdin-filename "$$action" - < "$$workflow"; \
+	  fi; \
 	done
 
 help: ## Show available targets
