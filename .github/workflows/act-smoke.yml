@@ -25,4 +25,4 @@ jobs:
           uv venv smoke-env --python 3.14
           uv pip install --python smoke-env/bin/python dist/*.whl
           cd dist
-          ../smoke-env/bin/python ../.github/actions/pure-python-wheel/scripts/smoke.py
+          ../smoke-env/bin/python ../scripts/wheel_smoke.py
