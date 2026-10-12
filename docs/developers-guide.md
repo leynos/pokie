@@ -116,6 +116,7 @@ actions under `.github/`.
 - `.github/workflows/act-smoke.yml` builds a pure Python wheel using the local
   wheel action and imports the built package. This isolates the behaviour that
   act validates from the rest of CI.
+
 - `.github/workflows/release.yml` publishes wheels when a `v*.*.*` tag is
   pushed. It builds a pure Python wheel, creates a GitHub release with
   generated release notes, downloads wheel artefacts, and uploads them to the
@@ -146,6 +147,48 @@ The `CS_ACCESS_TOKEN` secret must be configured when CodeScene coverage upload
 is required. The `CODESCENE_CLI_SHA256` variable should be populated using the
 refresh workflow, so CI can verify the downloaded CodeScene installer before
 upload.
+
+### Hosted CI and act diagnostics
+
+The Act validation workflow pins `act` v0.2.89 and checks the release archive's
+SHA-256 digest before installation. The upstream
+[command-injection advisory](https://github.com/advisories/GHSA-xmgr-9pqc-h5vw)
+and
+[cache-injection advisory](https://github.com/advisories/GHSA-x34h-54cw-9825)
+set v0.2.86 as the minimum fixed release. The wheel smoke workflow uses the
+absolute path `${PWD}/smoke-env/bin/python` to normalize the virtual
+environment prefix without resolving the interpreter symlink.
+`UV_LINK_MODE=copy` lets `uv` use cached files across the container's cache and
+target filesystems.
+
+The successful
+[CI run 38180404469](https://github.com/leynos/pokie/actions/runs/38180404469)
+and
+[Act run 38180404428](https://github.com/leynos/pokie/actions/runs/38180404428)
+show these diagnostics alongside passing jobs:
+
+- `SlipCover` is imported before pytest loads its assertion-rewrite hook when
+  coverage starts pytest through `python -m slipcover`. The resulting rewrite
+  warning describes instrumentation order; passing tests remain the test result.
+- Node 20 runtime notices, `DEP0040`, and `DEP0169` come from pinned external
+  JavaScript actions and their dependencies. Keep the warning visible rather
+  than filtering it broadly.
+- The pinned
+  [shared coverage action](https://github.com/leynos/shared-actions/blob/18bed1ca49a6de3d8882bd72635a32ae3f023d57/.github/actions/generate-coverage/action.yml#L220)
+  caches `~/.cache/uv`, while setup-uv supplies a different effective
+  `UV_CACHE_DIR`. That mismatch can omit the cache. Its restore and post-job
+  save also reserve the same key; an explicit save can succeed before the
+  post-job reservation warning. Both are cache issues owned by
+  `leynos/shared-actions`. They affect caching, not the coverage ratchet
+  result; see the action's
+  [restore](https://github.com/leynos/shared-actions/blob/18bed1ca49a6de3d8882bd72635a32ae3f023d57/.github/actions/generate-coverage/action.yml#L88)
+  and
+  [save](https://github.com/leynos/shared-actions/blob/18bed1ca49a6de3d8882bd72635a32ae3f023d57/.github/actions/generate-coverage/action.yml#L275)
+  steps.
+- Act may not resolve GitHub's synthetic pull-request merge commit to a branch
+  or tag because checkout leaves it detached. Identify the tested candidate
+  from workflow run metadata and verified merge parents, not the displayed
+  branch name; the warning does not by itself indicate a failed smoke test.
 
 ## Shared spelling configuration
 

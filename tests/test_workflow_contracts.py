@@ -9,6 +9,16 @@ from pathlib import Path
 import yaml
 
 
+def test_act_runtime_excludes_vulnerable_releases() -> None:
+    """Act must include the fixes for the command and cache injection advisories."""
+    path = Path(__file__).parents[1] / ".github/workflows/act-validation.yml"
+    workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
+    pin = workflow["jobs"]["act-validation"]["env"]["ACT_VERSION"]
+    version = tuple(map(int, pin.removeprefix("v").split(".")))
+    why = "Act must include the CVE-2026-34041 and CVE-2026-34042 fixes"
+    assert version >= (0, 2, 86), why
+
+
 def test_pure_wheel_action_preserves_upload_and_output_contracts() -> None:
     """The wheel action defaults to upload and maps its configured output path."""
     repository = Path(__file__).parents[1]

@@ -9,6 +9,8 @@ permissions:
 jobs:
   pure-wheel:
     runs-on: ubuntu-latest
+    env:
+      UV_LINK_MODE: copy
     steps:
       - name: Check out repository
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955  # v4
@@ -24,6 +26,7 @@ jobs:
       - name: Import built package
         run: |
           uv venv smoke-env --python 3.14
-          uv pip install --python smoke-env/bin/python ./"wheel output"/*.whl
+          smoke_python="${PWD}/smoke-env/bin/python"
+          uv pip install --python "${smoke_python}" ./"wheel output"/*.whl
           cd "wheel output"
-          ../smoke-env/bin/python ../scripts/wheel_smoke.py
+          "${smoke_python}" ../scripts/wheel_smoke.py

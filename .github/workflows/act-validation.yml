@@ -12,7 +12,7 @@ jobs:
   act-validation:
     runs-on: ubuntu-latest
     env:
-      ACT_VERSION: v0.2.84
+      ACT_VERSION: v0.2.89
     steps:
       - name: Check out repository
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955  # v4
