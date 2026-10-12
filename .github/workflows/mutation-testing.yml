@@ -11,7 +11,7 @@ on:
   schedule:
     # Stagger this cron per repository so estate runs do not bunch up;
     # existing repositories occupy the 03:05-09:05 UTC band.
-    - cron: "30 9 * * *" # Daily, 09:30 UTC
+    - cron: "30 9 * * *"  # Daily, 09:30 UTC
   workflow_dispatch:
 
 # Default the token to no scopes; jobs opt in explicitly.
@@ -28,7 +28,7 @@ jobs:
   mutation:
     permissions:
       contents: read
-      id-token: write # OIDC workflow-source resolution
+      id-token: write  # OIDC workflow-source resolution
     uses: leynos/shared-actions/.github/workflows/mutation-mutmut.yml@859416a90eb3987b46a57682c5d6b8964ad3f0a6
     with:
       # Flat package layout: the package directory sits at the

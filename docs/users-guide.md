@@ -23,29 +23,45 @@ record-processing behaviour.
 ## Quality gates
 
 Generated projects use `make all` as the standard local quality gate. It runs
-these targets in order:
+build, formatting, lint, type-check, test, Markdown, audit, and Makefile
+validation targets in order:
 
 - `build`: create the local virtual environment and install development
   dependencies with `uv sync --group dev`.
-- `check-fmt`: check Ruff formatting for Python sources and, when Rust is
-  enabled, `cargo fmt` for the Rust extension.
-- `lint`: run `lint-python` and, when Rust is enabled, `lint-rust`.
-- `typecheck`: run `ty check`.
+- `check-fmt`: check Python formatting with Ruff and Markdown formatting with
+  mdtablefix 0.6.1; when Rust is enabled, it also checks `cargo fmt`.
+- `lint`: run Python, repository-wide dead-code and duplication, and GitHub
+  Actions checks, plus `lint-rust` when Rust is enabled.
+- `typecheck`: run `ty check` over discovered Python files.
 - `test`: run pytest and, when Rust is enabled, Rust tests.
-- `spelling`: run the shared `typos-config-builder` gate over tracked Markdown
-  to enforce en-GB-oxendict spelling.
+- `markdownlint`: lint Markdown and run spelling checks over Markdown and code.
+- `nixie`: validate Mermaid diagrams.
 - `audit`: run `pip-audit` and, when Rust is enabled, `cargo audit`.
+- `validate`: validate the Makefile with `mbake`.
 
-The `lint-python` target runs Ruff, then Interrogate with
-`interrogate --fail-under 100 $(PYTHON_TARGETS)` to enforce 100% docstring
-coverage for the Python targets, then Pylint on PyPy 3.12. Pylint runs as a
-pinned release (`PYLINT_VERSION`) through `uv tool run` on the managed
-interpreter named by `PYLINT_PYTHON` (`pypy@3.12`), and a module PyPy cannot
-parse fails the lint rather than being skipped.
+Python targets include tracked and non-ignored, untracked `.py` and `.pyi`
+files across production code, tests, scripts, and local GitHub actions. Ruff,
+Interrogate, Pylint, and `ty` use this set; Interrogate enforces 100% docstring
+coverage across it. The shared `df12-python-lints` v0.4.0 package provides the
+Skylos dead-code and duplication helpers. Skylos classifies test paths as entry
+points, so pinned Vulture 2.16 also checks test helpers at its 60% minimum
+confidence, exempting only `test_*` and `pytestmark` names while checking their
+bodies. The duplication checks cover supported source files under `pokie/`,
+`tests/`, `scripts/`, and `.github/`; documentation is outside these roots.
+`ambrleaks` checks tests, while `yamllint` and `action-validator` validate
+workflow and action YAML. Actionlint checks workflows and adapted local
+actions, including shell steps through ShellCheck.
+
+Ruff 0.16.8 and ty 0.0.56 are pinned consistently in the Makefile, development
+dependencies, and CI. Pylint runs as a pinned release (`PYLINT_VERSION`) through
+`uv tool run` on the managed interpreter named by `PYLINT_PYTHON`
+(`pypy@3.12`), and a module PyPy cannot parse fails the lint rather than being
+skipped.
 
 The spelling target regenerates `typos.toml` from the live shared dictionary
-and the `typos.local.toml` overlay on every run, so `typos.toml` is never drift
-checked in continuous integration. Run `make spelling` directly when updating
+and the `typos.local.toml` overlay on every run, then checks the whole
+repository with `--scope all`. Therefore, `typos.toml` is never drift checked
+in continuous integration. Run `make spelling` directly when updating
 documentation; an ignored local cache remains usable when the shared source is
 temporarily offline.
 
@@ -104,10 +120,16 @@ available, pass `WITH_ACT=1` to the `test` target:
 make test WITH_ACT=1
 ```
 
-This sets `RUN_ACT_VALIDATION=1` for the pytest invocation, enabling the
-act-based integration tests that run the generated CI workflow locally. Omitting
-`WITH_ACT` (or setting it to `0`) skips act validation; the rest of the test
-suite runs unchanged.
+Pytest runs first, then the target runs the dedicated wheel smoke workflow
+through `make test-act`. The smoke workflow builds a pure Python wheel with the
+local action and imports the built package. Static workflow checks run
+separately as part of `make lint`; the act validation workflow does not repeat
+those checks or the regular test suite. Omitting `WITH_ACT` (or setting it to
+`0`) skips act validation; the rest of the test suite runs unchanged.
+
+The runner image defaults to `ghcr.io/catthehacker/ubuntu:act-24.04`. Pass
+`ACT_IMAGE=...` to Make to use another compatible local image. The explicit
+platform mapping keeps act noninteractive in CI.
 
 ## Cleaning Local State
 

@@ -1,0 +1,32 @@
+name: Pure wheel smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pure-wheel:
+    runs-on: ubuntu-latest
+    env:
+      UV_LINK_MODE: copy
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955  # v4
+        with:
+          persist-credentials: false
+      - name: Build pure wheel
+        uses: ./.github/actions/pure-python-wheel
+        with:
+          python-version: '3.14'
+          artifact-name: wheels-smoke
+          out-dir: 'wheel output'
+          upload-artefact: 'false'
+      - name: Import built package
+        run: |
+          uv venv smoke-env --python 3.14
+          smoke_python="${PWD}/smoke-env/bin/python"
+          uv pip install --python "${smoke_python}" ./"wheel output"/*.whl
+          cd "wheel output"
+          "${smoke_python}" ../scripts/wheel_smoke.py

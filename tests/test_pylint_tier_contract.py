@@ -9,8 +9,6 @@ before: a bare `pypy` moved to a newer PyPy with no commit here, and a
 disabled `syntax-error` let unparsable modules go unlinted.
 """
 
-from __future__ import annotations
-
 import re
 import shlex
 import shutil
@@ -19,6 +17,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
+import yaml
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 MAKEFILE_PATH = _REPO_ROOT / "Makefile"
@@ -98,13 +97,22 @@ def _make_quoted(path: Path) -> str:
     return shlex.quote(str(path)).replace("$", "$$")
 
 
-def _run_configured_pylint(target: Path) -> subprocess.CompletedProcess[str]:
-    """Run the Makefile's own `$(PYLINT)` command over one module.
+def _run_make_probe(
+    recipe: str, *, directory: Path = _REPO_ROOT, timeout: int = 600
+) -> subprocess.CompletedProcess[str]:
+    """Run one repository Make recipe for a tooling contract.
+
+    For example, ``_run_make_probe("$(PYLINT) clean.py")`` checks a module
+    through the configured tier. Reuse this test-only driver for Make probes.
 
     Parameters
     ----------
-    target : Path
-        The module to lint.
+    recipe : str
+        A fixed recipe with any generated paths shell-quoted.
+    directory : Path
+        The repository containing the Makefile.
+    timeout : int
+        Maximum seconds for the probe.
 
     Returns
     -------
@@ -119,15 +127,15 @@ def _run_configured_pylint(target: Path) -> subprocess.CompletedProcess[str]:
             "--no-print-directory",
             "-s",
             "-C",
-            str(_REPO_ROOT),
+            str(directory),
             "--eval",
-            f"{_PROBE_TARGET}: ; $(PYLINT) {_make_quoted(target)}",
+            f"{_PROBE_TARGET}: ; {recipe}",
             _PROBE_TARGET,
         ],
         capture_output=True,
         text=True,
         check=False,
-        timeout=600,
+        timeout=timeout,
     )
 
 
@@ -148,11 +156,96 @@ def test_configured_pylint_fails_on_an_unparsable_module(tmp_path: Path) -> None
     clean = tmp_path / "clean_module.py"
     clean.write_text('"""A clean module."""\n\nVALUE = 1\n', encoding="utf-8")
 
-    failed = _run_configured_pylint(broken)
-    passed = _run_configured_pylint(clean)
+    failed = _run_make_probe(f"$(PYLINT) {_make_quoted(broken)}")
+    passed = _run_make_probe(f"$(PYLINT) {_make_quoted(clean)}")
 
     failed_output = f"{failed.stdout}{failed.stderr}"
     passed_output = f"{passed.stdout}{passed.stderr}"
     assert failed.returncode != 0, f"a parse error must fail the tier: {failed_output}"
     assert "syntax-error" in failed.stdout, f"expected the parse error: {failed_output}"
     assert passed.returncode == 0, f"a clean module must pass: {passed_output}"
+
+
+@pytest.mark.parametrize("tool", ["ruff", "ty"])
+def test_tool_versions_match_make_dependencies_and_ci(tool: str) -> None:
+    """Local commands and CI must use the same reviewed tool versions."""
+    version = _makefile_variable(f"{tool.upper()}_VERSION")
+    config = tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    dependencies = config["dependency-groups"]["dev"]
+    assert f"{tool}=={version}" in dependencies, "The dev pin must match Make"
+    workflow = yaml.safe_load(
+        (_REPO_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    )
+    ci_version = workflow["jobs"]["lint-test"]["env"][f"{tool.upper()}_VERSION"]
+    assert ci_version == version, "CI must install the version that Make executes"
+
+
+def test_python_discovery_includes_new_scripts_and_action_code(tmp_path: Path) -> None:
+    """A new Python source in any supported area must enter the lint targets."""
+    git = shutil.which("git")
+    assert git is not None, "Git must be installed"
+    subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - resolved Git and generated directory, no shell.
+        [git, "init", "--quiet", str(tmp_path)],
+        check=True,
+        capture_output=True,
+        timeout=30,
+    )
+    paths = {
+        "pokie/new.py",
+        "tests/new.py",
+        "scripts/new.py",
+        ".github/actions/example/new.py",
+        ".github/workflows/new.py",
+    }
+    for relative in paths:
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
+    (tmp_path / "Makefile").write_text(
+        MAKEFILE_PATH.read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    result = _run_make_probe(
+        "@printf '%s\\n' $(PYTHON_TARGETS)", directory=tmp_path, timeout=30
+    )
+    assert result.returncode == 0, f"Source discovery must succeed: {result.stderr}"
+    why = "Every production, test, script, workflow and action source must be linted"
+    assert set(result.stdout.splitlines()) == paths, why
+
+
+@pytest.mark.timeout(180)
+def test_duplication_gate_sees_every_source_area(tmp_path: Path) -> None:
+    """Copies across production, tests, scripts and hidden actions must block."""
+    binary = _REPO_ROOT / ".tools/nose/nose"
+    if not binary.exists():
+        pytest.skip("Run make install-nose before the detector integration test")
+    roots = tomllib.loads((_REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))[
+        "tool"
+    ]["nose"]["roots"]
+    shutil.copyfile(_REPO_ROOT / "pyproject.toml", tmp_path / "pyproject.toml")
+    source = (
+        "def summarize(values):\n"
+        "    total = 0\n"
+        "    positives = 0\n"
+        "    negatives = 0\n"
+        "    for value in values:\n"
+        "        total += value * value\n"
+        "        if value > 0:\n"
+        "            positives += 1\n"
+        "        else:\n"
+        "            negatives += 1\n"
+        "    return total, positives, negatives\n"
+    )
+    for root in roots:
+        directory = tmp_path / root
+        directory.mkdir(parents=True)
+        (directory / "sample.py").write_text(source, encoding="utf-8")
+    result = _run_make_probe(
+        "$(DUPLICATION_GATE) check "
+        f"--repository {_make_quoted(tmp_path)} --binary {_make_quoted(binary)}",
+        timeout=150,
+    )
+    assert result.returncode == 2, "Make must fail when the detector blocks"
+    assert "duplicate code:" in result.stdout, "A valid family must be reported"
+    for root in roots:
+        why = f"Every area must be reported: {result.stdout} {result.stderr}"
+        assert f"{root}/sample.py" in result.stdout, why
