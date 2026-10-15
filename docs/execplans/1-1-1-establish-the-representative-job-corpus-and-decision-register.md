@@ -289,6 +289,22 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   check is what rejects the coercible spellings. A sweep for sibling
   comparisons against a constant in `adapters/` found none with this defect:
   the others compare two already-validated strings or two literals.
+- [x] (2026-10-16) EP-M0 review round 6: the CodeRabbit CLI review of `1df97cd`
+  confirmed the round-5 repair resolved — it re-read the repaired lines and
+  raised nothing against `toml_jobs.py`, `toml_values.py`, or the new test
+  module — and raised one new minor finding against *this plan*, not the code:
+  `Concrete steps` ran `make check-fmt` and then `make fmt`, and since
+  `make fmt` rewrites tracked files, a run following that order cannot log a
+  passing `check-fmt` for the tree it leaves behind. Verified against the file
+  and fixed: the two lines are swapped and the surrounding paragraph now states
+  why formatting precedes checking, so every later gate describes one fixed
+  tree. `git blame` put the finding on `7603f88` lines, so it is late-surfacing
+  round-1 material for the sixth round running rather than a regression from
+  `1df97cd`. The finding's premise held up under checking — the plan's other
+  gate lists (the EP-M0 acceptance criterion, `Idempotence and recovery`, the
+  EP-M4 risk mitigation) name `make fmt` as a fixing step run before a green
+  run and do not restate a check-then-format order, so the concrete-steps block
+  was the only place that contradicted itself.
 - [ ] EP-M1: domain policy, comparison, and audit with unit and property
   tests.
 - [ ] EP-M2: adapters, runner, report snapshots, and unhappy scenarios.
@@ -568,6 +584,25 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   caller reading a version number made the name read wrong at the call site; it
   is now `_integer`, which is what it returns, and its docstring states why the
   shape of the check is the substance rather than a formality.
+
+- **A gate list is ordered, and a fixing step cannot come after the check it
+  fixes.** The round-6 review found the `Concrete steps` block running
+  `make check-fmt` and then `make fmt`. It reads as a harmless pair — both are
+  formatting gates, so surely the order does not matter — but `make fmt`
+  rewrites tracked files, so the logged `check-fmt` result describes the tree
+  *before* the rewrite, and the tree that gets committed is one nothing has
+  checked. Anyone following the plan would either log a result that does not
+  apply or re-run the check to find out, which is exactly what the block exists
+  to spare them. The same shape appears whenever a documented sequence mixes a
+  mutating target with its verifying twin: `fmt` before `check-fmt`, and by the
+  same argument any future "generate then diff" pair needs the generator first.
+  This is the second finding about the plan's own verifiability rather than the
+  code, after the round-1 stale line citation, and both were invisible to every
+  gate — no gate reads `docs/execplans/`, which this task's gate inventory
+  confirms by grep. The obligation that follows: since the plan cannot be
+  checked by CI, its commands have to be right by review, and a reviewer
+  reading a sequence should ask what each step does to the tree rather than
+  only whether the target passes.
 
 ## Decision log
 
@@ -1693,8 +1728,8 @@ logging with `tee`:
 
 ```bash
 BRANCH=$(git branch --show-current)
-make check-fmt 2>&1 | tee /tmp/check-fmt-pokie-$BRANCH.out
 make fmt 2>&1 | tee /tmp/fmt-pokie-$BRANCH.out
+make check-fmt 2>&1 | tee /tmp/check-fmt-pokie-$BRANCH.out
 make typecheck 2>&1 | tee /tmp/typecheck-pokie-$BRANCH.out
 make lint 2>&1 | tee /tmp/lint-pokie-$BRANCH.out
 make test 2>&1 | tee /tmp/test-pokie-$BRANCH.out
@@ -1709,8 +1744,14 @@ uv run --with 'slipcover' python -m slipcover --branch -m pytest -n auto \
 
 `make fmt` is listed because the ExecPlan itself is a Markdown target: editing
 it can leave a table that `mdtablefix` re-pads, which `make check-fmt` reports
-and only `make fmt` fixes. `make spelling` and `make validate` are separate
-targets (`make markdownlint` does not include them), and `make audit` is the
+and only `make fmt` fixes. It runs **before** `make check-fmt` rather than
+after it, because `make fmt` rewrites tracked files: a sequence that checks
+first and formats second cannot log a passing `check-fmt` for the tree it
+leaves behind, so a reader would have to re-run the check to learn whether the
+formatted tree still passes. Formatting first makes every later gate —
+`check-fmt` included — describe one fixed tree, which is also the tree that
+gets committed. `make spelling` and `make validate` are separate targets
+(`make markdownlint` does not include them), and `make audit` is the
 `pip-audit` gate named in `AGENTS.md`. The coverage command must be run through
 `uv run --with 'slipcover'`: `uv tool run` installs an isolated environment in
 which `pytest` is not importable, so that form fails before collecting tests
