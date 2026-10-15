@@ -29,9 +29,15 @@ def _materialize(
 ) -> tuple[list[str], bytes]:
     """Write the case's inputs and resolve its operands.
 
-    A lone ``-`` operand keeps standard input, so a stdin case stays
-    testable; every other operand becomes the path of the file just
-    written. Inputs exist only for the duration of the run.
+    A case that names no operand reads standard input, as does one whose only
+    operand is ``-``; the program's own convention decides that, and awk and
+    the oracle agree on it. Either route needs exactly one input, because the
+    runner cannot know which of several a program would read, and guessing the
+    first would report a result for an input the case never selected.
+
+    Every other operand becomes the path of the file just written, and the case
+    must list an input under that name. Inputs exist only for the duration of
+    the run.
 
     Parameters
     ----------
@@ -48,14 +54,34 @@ def _materialize(
     Raises
     ------
     EvidenceFormatError
-        If an operand names no input in the case.
+        If an operand names no input in the case, or the case reads standard
+        input without exactly one input to feed it.
     """
+    if not case.operands or case.operands == ("-",):
+        if len(case.inputs) != 1:
+            message = (
+                "standard input needs exactly one input to feed it, "
+                f"but the case lists {len(case.inputs)}"
+            )
+            raise EvidenceFormatError(
+                message,
+                path=pathlib.PurePosixPath(case.case_id),
+                key="inputs",
+            )
+        return list(case.operands), case.inputs[0].content
     by_name = {input_file.name: input_file for input_file in case.inputs}
+    if "-" in case.operands:
+        message = (
+            "'-' cannot be combined with file operands, because the case "
+            "cannot say which input it would read"
+        )
+        raise EvidenceFormatError(
+            message,
+            path=pathlib.PurePosixPath(case.case_id),
+            key="operands",
+        )
     resolved: list[str] = []
     for operand in case.operands:
-        if operand == "-":
-            resolved.append(operand)
-            continue
         if operand not in by_name:
             message = f"the case lists no input named {operand!r}"
             raise EvidenceFormatError(
@@ -66,8 +92,6 @@ def _materialize(
         target = directory / operand
         target.write_bytes(by_name[operand].content)
         resolved.append(str(target))
-    if resolved == ["-"] and case.inputs:
-        return resolved, case.inputs[0].content
     return resolved, b""
 
 

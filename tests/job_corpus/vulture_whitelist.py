@@ -1,6 +1,6 @@
 """Names that are live but invisible to static analysis.
 
-We run Vulture over `tests/` so that unused helpers are caught, but a corpus
+Vulture runs over `tests/` so that unused helpers are caught, but a corpus
 harness is full of names that no Python expression ever mentions. Vulture's
 scanner cannot see through either pattern this package relies on:
 

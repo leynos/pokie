@@ -169,7 +169,15 @@ def test_alternative_agrees_or_declares_divergence(
             f"{job.job_id}/{case.case_id}: {implementation.path} declares a "
             f"divergence that no longer holds: {describe(outcome)}"
         )
-        assert outcome.stdout != case.expected.stdout, why
+        # A divergence is a difference in the outcome, which is the stdout and
+        # the exit status together, as the agreeing branch below also judges.
+        # Comparing the stdout alone would report a declaration as stale while
+        # the alternative still differs from the oracle another way.
+        differs = (
+            outcome.stdout != case.expected.stdout
+            or outcome.exit_status != case.expected.exit_status
+        )
+        assert differs, why
         return
     why = (
         f"{job.job_id}/{case.case_id}: {implementation.path} produced "
