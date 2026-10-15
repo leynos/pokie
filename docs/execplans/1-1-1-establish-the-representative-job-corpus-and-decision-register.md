@@ -354,29 +354,29 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   removes the nine-member union that had been written to fix it. Impact:
   recorded because a reviewer reading only the final code cannot see that the
   narrow bound was ever wrong, and the same mistake is easy to repeat.
-- **Falsified: the mitigation this plan's own Risk entry relies on.** The Risk
-  section says "every model field is read by policy or the report, so Vulture
-  has nothing to flag" (line 1553). That is untrue in two different ways, and
-  the `dead-code` gate reports 69 findings once Ruff, Interrogate, Pylint, and
-  DF12_PYLINT pass. (a) The 47 `StrEnum` members are a *wire format*: a member
-  is reached when a `job.toml` string names it, through `toml_values._member`,
-  which calls `enum_type(text)`. Constructing a member from text is a runtime
-  lookup, so no consumer that EP-M1 through EP-M5 adds can ever make Vulture
-  see it. (b) The 19 dataclass fields and the `RegisterEntry` class are
-  genuinely premature: `policy.py` and `report.py` read fields by attribute,
-  which does clear Vulture, so those findings would have resolved on their own.
-  Evidence: `Failures.RED`-style probes showed that a literal `Colour.RED`
-  expression clears a member, while construction, keyword construction, and
-  iteration all leave it reported; a `Thing(title=..., reason=...)`
-  construction leaves every field reported, while an attribute read clears
-  them. Impact and resolution: the permanent cases cannot be fixed by waiting,
-  so the plan needs a mechanism the model cannot provide. Two candidate
-  mechanisms were tested and rejected: dotted `ignore_names` entries
-  (`"Colour.RED"`) match nothing, and bare names (`"RED"`) would exempt every
-  same-named symbol repository-wide. The resolution is Vulture's own documented
-  mechanism, a scanned whitelist module at
-  `tests/job_corpus/vulture_whitelist.py`, written as tuple assignments of real
-  attribute access so that `ty` fails the build if a whitelisted name is
+- **Falsified: the mitigation this plan's own Risk entry relies on.** The
+  `Risks` entry for the strict lint stack rejected "unread model fields" on the
+  grounds that "every model field is read by policy or the report". That is
+  untrue in two different ways, and the `dead-code` gate reports 69 findings
+  once Ruff, Interrogate, Pylint, and DF12_PYLINT pass. (a) The 47 `StrEnum`
+  members are a *wire format*: a member is reached when a `job.toml` string
+  names it, through `toml_values._member`, which calls `enum_type(text)`.
+  Constructing a member from text is a runtime lookup, so no consumer that
+  EP-M1 through EP-M5 adds can ever make Vulture see it. (b) The 19 dataclass
+  fields and the `RegisterEntry` class are genuinely premature: `policy.py` and
+  `report.py` read fields by attribute, which does clear Vulture, so those
+  findings would have resolved on their own. Evidence: `Failures.RED`-style
+  probes showed that a literal `Colour.RED` expression clears a member, while
+  construction, keyword construction, and iteration all leave it reported; a
+  `Thing(title=..., reason=...)` construction leaves every field reported,
+  while an attribute read clears them. Impact and resolution: the permanent
+  cases cannot be fixed by waiting, so the plan needs a mechanism the model
+  cannot provide. Two candidate mechanisms were tested and rejected: dotted
+  `ignore_names` entries (`"Colour.RED"`) match nothing, and bare names
+  (`"RED"`) would exempt every same-named symbol repository-wide. The
+  resolution is Vulture's own documented mechanism, a scanned whitelist module
+  at `tests/job_corpus/vulture_whitelist.py`, written as tuple assignments of
+  real attribute access so that `ty` fails the build if a whitelisted name is
   renamed or deleted. A stale whitelist would silently exempt dead code, so
   `tests/test_job_corpus_dead_code.py` closes the loop: it re-runs Vulture with
   the whitelist excluded and asserts the two name sets are *equal*, failing on
