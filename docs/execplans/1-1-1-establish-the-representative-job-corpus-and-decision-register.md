@@ -218,6 +218,27 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   coverage command under CPython 3.14.7. Non-vacuity is enforced by
   `test_corpus_is_non_vacuous`, and the Vulture whitelist is guarded in both
   directions by `tests/test_job_corpus_dead_code.py`.
+- [x] (2026-10-16) EP-M0 review round: the CodeRabbit CLI review of `7603f88`
+  returned four findings, all four verified valid against source and resolved in
+  `98b5506`. The alternative-corpus tests now consume the shared
+  `process_runner_instance` fixture instead of duplicating the awk lookup and
+  runner construction, the `EXPECTED_CATEGORIES` docstring no longer claims a
+  fourth job category, and the stale line-number citation in this plan is
+  replaced by a citation by section name. All ten gates re-run green at
+  `98b5506`, with coverage instrumentation independently confirming the awk
+  alternative executed rather than skipped.
+- [x] (2026-10-16) EP-M0 review round 2: the CodeRabbit CLI review of `98b5506`
+  returned five further findings. All five were verified against source; one
+  (`_materialize`'s standard-input selection) proved more severe than reported
+  and was repaired red-first with `tests/test_job_corpus_runner.py`. The other
+  four: the divergence branch now compares the whole outcome rather than the
+  stdout alone, the awk comment's "regressive test" reads "restrictive test",
+  the Vulture whitelist docstring drops a first-person pronoun per the style
+  guide, and the three new dev dependencies gained upper bounds. Every gate
+  re-run green — `lint` reached all ten sub-gates with pylint at 10.00/10 —
+  against uncommitted tree `git diff | git hash-object --stdin` = `d2c79fa6`,
+  with `test` at 50 passed and the coverage command at 50 passed under
+  instrumentation.
 - [ ] EP-M1: domain policy, comparison, and audit with unit and property
   tests.
 - [ ] EP-M2: adapters, runner, report snapshots, and unhappy scenarios.
@@ -388,6 +409,57 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   guard: Vulture matches by *name*, not by scope, so the guard's own local
   variable `owner` masked `RegisterEntry.owner` and made the entry look stale;
   the locals are now named `declaring` and `classes` to keep the scan honest.
+- **The strict pylint budget bounds how many fixtures a test can take.**
+  `pyproject.toml` sets `max-args = 4` and `max-positional-arguments = 4`, and
+  pytest fixtures cannot be keyword-only without the fixture name changing, so
+  a test can take at most two injected fixtures on top of its `parametrize`
+  values. Resolving the review finding that
+  `tests/test_job_corpus_alternatives.py` duplicated the shared session
+  fixtures pushed `test_alternative_agrees_or_declares_divergence` to five
+  parameters and failed the `pylint` sub-gate with `R0913`/`R0917` at 9.98/10,
+  aborting the lint recipe and leaving seven later sub-gates unrun. The
+  resolution was not to bundle the fixtures into a composite or a dataclass:
+  `process_runner_instance` is *constructed from* the `awk_executable` fixture
+  in `tests/conftest.py`, so the runner already carries the resolved
+  interpreter as the documented ``awk_executable`` attribute. Reading it there
+  satisfies the review, keeps the test at four parameters, and makes the skip
+  precondition provably consistent with the run it guards, because both come
+  from one object. Impact for later milestones: when a test seems to need more
+  fixtures than the budget allows, first check whether one of them already
+  carries the value in question before introducing an abstraction to bundle
+  them. The same constraint applies to any helper added to `tests/`.
+- **The CI coverage command is deliberately not statically resolvable.**
+  `slipcover` is not declared in `pyproject.toml` — the command is
+  `uv run --with 'slipcover' python -m slipcover ...`, so the dependency is
+  supplied at invocation time and `uv run --no-sync` suppresses exactly that
+  provisioning, failing with `No module named slipcover`. Recorded because the
+  failure looks like a missing repository dependency and invites the wrong fix
+  (adding `slipcover` to the `dev` group); the plan's own concrete-steps
+  section already states the correct form and explains why `uv tool run` also
+  fails (its isolated environment cannot import `pytest`).
+- **A runner bug that no committed case could expose.** The second review round
+  found that `_materialize` selected its standard-input bytes with
+  `if resolved == ["-"]`, which fires only for a lone `-` operand. Two silent
+  paths followed from that. A case naming *no* operand (`operands = []`) — the
+  convention `reference.py`'s own docstring documents, since it reads
+  `sys.stdin` when given nothing — fed the program empty input, so the oracle
+  reported `0 0` for a one-record input instead of `1 0`: a plausible count
+  that a reader would attribute to the input rather than to the harness. A case
+  combining `-` with file operands fed the first input and silently ignored the
+  rest. Neither was reachable from the committed corpus, because
+  `validate-user-records` names its operand and nothing yet uses
+  `operands = ["-"]` — the plan's first stdin case arrives in EP-M3. Impact:
+  this is the failure mode the harness exists to prevent, a wrong result that
+  looks like a finding about pokie. The rule now lives in `_materialize`: no
+  operands or a lone `-` means standard input and requires exactly one input,
+  `-` mixed with file operands is refused, and any other operand must name a
+  listed input. `tests/test_job_corpus_runner.py` pins all of it against the
+  real oracle, red-first — the two failing cases were observed before the fix
+  (`0 0` and no exception where one was required) and pass after it. The
+  general lesson, recorded because EP-M3 adds the stdin cases: a case added
+  later can exercise a runner path that no earlier case does, so the runner's
+  operand rules deserve direct unit tests rather than coverage that arrives
+  only when a job happens to need them.
 
 ## Decision log
 
@@ -464,6 +536,23 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   exemption, and `tests/test_job_corpus_dead_code.py` asserts the whitelist and
   Vulture's own findings are equal sets so an entry is deleted the moment its
   consumer lands. Date/Author: 2026-10-15, implementation agent at EP-M0.
+- Decision: the three added development dependencies gain upper bounds —
+  `pytest-bdd>=9.0.0,<10`, `syrupy>=6.1.1,<7`, `hypothesis>=6.169.4,<7` — and
+  the three places in this plan that named the bare lower bounds are updated
+  with them. Rationale: every other entry in the `dev` group is either exactly
+  pinned (`ruff`, `pylint`, `ty`, `vulture`, `yamllint`, `cyclopts`) or
+  lower-bounded (`pyyaml`), and `docs/developers-guide.md` states that pinned
+  tools are bumped deliberately with all locations updated together. A bare
+  lower bound on a test-framework dependency lets a future major release change
+  the harness between two otherwise identical runs, and the `syrupy` case is
+  concrete: its README still declares `Pytest >=5.1, <9` while 6.1.1's metadata
+  allows `pytest>=8.0.0`, so the ecosystem's own compatibility statements are
+  not a reliable guide. Deviation note: this refines a version string the plan
+  specified, it does not change scope, dependency choice, or any constraint —
+  `Constraints` already names exactly these three packages as the only
+  permitted additions. `uv lock` changed three specifier lines and no locked
+  version, so today's environment is unaffected. Date/Author: 2026-10-16,
+  implementation agent after CodeRabbit review round 2.
 
 ## Outcomes & retrospective
 
@@ -1448,7 +1537,7 @@ rather than reporting coverage.
 EP-M0 dependency step:
 
 ```bash
-uv add --dev "pytest-bdd>=9.0.0" "syrupy>=6.1.1" "hypothesis>=6.169.4"
+uv add --dev "pytest-bdd>=9.0.0,<10" "syrupy>=6.1.1,<7" "hypothesis>=6.169.4,<7"
 ```
 
 Focused runs during EP-M1 to EP-M3:
@@ -1537,9 +1626,10 @@ filter-error-lines invalid ok ERROR one, then UnicodeDecodeError, status 1
 
 ## Interfaces and dependencies
 
-Development dependencies (group `dev`): `pytest-bdd>=9.0.0`, `syrupy>=6.1.1`,
-and `hypothesis>=6.169.4`. Standard library: `tomllib`, `subprocess`,
-`tempfile`, `dataclasses`, `enum`, `typing`, `ast` (boundary test only).
+Development dependencies (group `dev`): `pytest-bdd>=9.0.0,<10`,
+`syrupy>=6.1.1,<7`, and `hypothesis>=6.169.4,<7`. Standard library: `tomllib`,
+`subprocess`, `tempfile`, `dataclasses`, `enum`, `typing`, `ast` (boundary test
+only).
 
 Layout (all under `tests/`, imported as `job_corpus` via
 `pythonpath = ["tests"]`):

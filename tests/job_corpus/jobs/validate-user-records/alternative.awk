@@ -16,8 +16,8 @@
         sub(/ uid=.*$/, "", name)
         raw = pair
         sub(/^user=[^ ]* uid=/, "", raw)
-        # The obvious regressive test `raw ~ /^[0-9]+$/` would accept nothing
-        # signed, so signs are listed explicitly and the sign is then applied.
+        # The obvious restrictive test `raw ~ /^[0-9]+$/` accepts no signed
+        # value, so signs are listed explicitly and the sign is then applied.
         if (raw ~ /^[+-]?[0-9]+$/) {
             value = raw + 0
             if (value >= 0) {
