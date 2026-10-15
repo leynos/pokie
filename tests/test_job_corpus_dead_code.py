@@ -167,7 +167,11 @@ def reported_names() -> set[str]:
             continue
         path = match.group("path")
         if path not in tree_by_path:
-            source = pathlib.Path(path)
+            # Vulture prints the path relative to the directory it ran in,
+            # which `cwd=REPO_ROOT` makes repository-relative. Anchoring to
+            # `REPO_ROOT` rather than the caller's directory keeps the guard
+            # runnable from a subdirectory.
+            source = REPO_ROOT / path
             tree_by_path[path] = defining_class_by_line(
                 ast.parse(source.read_text(encoding="utf-8"))
             )
@@ -179,6 +183,27 @@ def reported_names() -> set[str]:
             )
         )
     return names
+
+
+def test_reporting_does_not_depend_on_the_callers_directory(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    """The guard must read each file by the path Vulture scanned it as.
+
+    Vulture runs with ``cwd=REPO_ROOT``, so it prints corpus-relative paths
+    like ``tests/job_corpus/model.py``. Resolving one against the caller's
+    directory rather than the repository root raises ``FileNotFoundError``
+    whenever pytest is started from a subdirectory — a failure that says
+    nothing about the whitelist and would send a reader hunting for a missing
+    file. Pinned because a guard is only useful if it can be run from anywhere.
+    """
+    expected = reported_names()
+    monkeypatch.chdir(tmp_path)
+    elsewhere = reported_names()
+    assert elsewhere == expected, (
+        f"the findings changed with the caller's directory ({tmp_path}): "
+        f"reported {sorted(elsewhere)} instead of {sorted(expected)}"
+    )
 
 
 def test_whitelist_matches_vulture() -> None:
