@@ -252,6 +252,22 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   accepts a path-like or duplicated `name`, so neither was merely theoretical.
   Recorded as obligation INV-RUNNER-1 and as the shared root cause of all three
   runner defects review has found.
+- [x] (2026-10-16) EP-M0 review round 4: the CodeRabbit CLI review of `26ba269`
+  confirmed all three round-3 repairs resolved and raised one new minor finding
+  against `tests/test_job_corpus_dead_code.py` — a file `26ba269` does not
+  touch, so it is late-surfacing material from round 1 rather than a
+  regression. The premise verified and was reproduced: Vulture prints paths
+  relative to its own directory (`cwd=REPO_ROOT`), and resolving one against
+  the caller's directory raised
+  `FileNotFoundError: 'tests/job_corpus/model.py'` under `cd tests && pytest`.
+  No documented invocation triggers it — `make test` and every workflow run
+  from the root — so CI was never affected; it is fixed because a guard that
+  dies with a missing-file error is worse than useless to whoever hits it.
+  Repaired red-first with
+  `test_reporting_does_not_depend_on_the_callers_directory`, which reproduced
+  the error before the one-line anchor and passes after it. The whole suite
+  also now runs from `tests/` (53 passed), which is recorded in the plan rather
+  than left as an incidental benefit.
 - [ ] EP-M1: domain policy, comparison, and audit with unit and property
   tests.
 - [ ] EP-M2: adapters, runner, report snapshots, and unhappy scenarios.
@@ -494,6 +510,23 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   a deliberate change here rather than happening by accident; that trade is
   taken knowingly, since a nested file can be given a flat name just as well,
   while a silent escape cannot be recovered from.
+- **A guard is only a guard if it survives its own invocation.** The round-4
+  review found the dead-code guard resolving Vulture's printed paths against
+  the caller's directory. Vulture runs with `cwd=REPO_ROOT` and therefore
+  reports `tests/job_corpus/model.py`, so `cd tests && pytest` died with
+  `FileNotFoundError` instead of reporting whitelist disagreement. Nothing in
+  the repository invokes pytest that way — `make test` and every workflow run
+  from the root — so this was latent rather than broken, and it is recorded as
+  latent rather than dressed up as an incident. It is still worth fixing on its
+  own terms: the failure a reader would meet is a missing file, which points
+  away from the whitelist the guard exists to check, and this plan's own
+  obligations are the reason the guard runs at all. The one-line anchor is
+  pinned by a test that changes directory and requires the same findings, so
+  the property is stated rather than incidental. The broader lesson for EP-M1
+  onward, where the domain modules are pure and cwd-independent by
+  construction: an adapter or test that reads a repository path holds an
+  implicit assumption about where it was started, and that assumption is
+  cheapest to state in a test at the moment it is noticed.
 
 ## Decision log
 
@@ -871,6 +904,16 @@ Obligations:
     `tests/job_corpus/vulture_whitelist.py`.
   - Non-vacuity: the guard fails if Vulture cannot run, so an environment
     without `vulture` reports an error rather than passing.
+  - Invocation independence: Vulture prints the path relative to the directory
+    it ran in, while the guard reads each file by that printed path, so the
+    path is anchored to the repository root rather than to the caller's
+    directory. Without the anchor, `cd tests && pytest` failed with
+    `FileNotFoundError: 'tests/job_corpus/model.py'` — a real invocation, and a
+    failure that would send the reader after a path bug rather than the
+    exemption the guard exists to check. Pinned by
+    `test_reporting_does_not_depend_on_the_callers_directory`, which gathers
+    the findings, changes to a temporary directory, and requires the same
+    result; the whole suite now passes from both the root and `tests/`.
 
 - Obligation INV-RUNNER-1: a case whose operands or input names the runner
   cannot interpret is refused with `EvidenceFormatError` naming the offending
