@@ -8,7 +8,8 @@ are defined in `docs/pokie-design.md` §7.
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | `pokie/`           | Generated package; exports `hello()` through the Python fallback. No interpreter or compiler yet.                      |
 | `tests/`           | Top-level scaffold and tooling-contract tests. Future language fixtures, behavioural tests, and snapshots belong here. |
-| `docs/`            | Product scope, vocabulary, proposed design/contracts/ADRs, roadmap, and operational guides.                            |
+| `docs/`            | Product scope, vocabulary, proposed design and contracts, roadmap, and operational guides.                             |
+| `docs/adrs/`       | Architectural decision records, named `adr-nnnn-title-slug.md`.                                                        |
 | `.github/`         | Generated CI workflows and local actions.                                                                              |
 | `.rules/`          | Detailed development conventions referenced by `AGENTS.md`.                                                            |
 | `Makefile`         | Local build, formatting, validation, test, and audit commands.                                                         |

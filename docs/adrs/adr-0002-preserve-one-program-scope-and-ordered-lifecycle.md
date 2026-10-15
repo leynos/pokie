@@ -1,4 +1,4 @@
-# ADR 002: Preserve one program scope and ordered lifecycle
+# ADR 0002: Preserve one program scope and ordered lifecycle
 
 ## Status
 
