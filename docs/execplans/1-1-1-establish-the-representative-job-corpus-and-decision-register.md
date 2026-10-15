@@ -138,8 +138,9 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   kind is named `reference`; `docs/job-corpus.md` states that reference scripts
   deliberately model pokie semantics and are lint-conformant, so their size and
   shape are not evidence for roadmap task 5.2.2; no line counts are recorded.
-- Risk: CI's `awk` is mawk, not GNU Awk. Evidence: GitHub's Ubuntu 24.04
-  runner image ships mawk as `awk`. Severity: medium. Likelihood: certain.
+- Risk: CI's `awk` is mawk, not GNU Awk. Evidence: the Ubuntu 24.04 runner
+  image's installed-software list (version 20261004.327.1) has no gawk, and
+  stock Ubuntu installs mawk as `awk`. Severity: medium. Likelihood: certain.
   Mitigation: awk alternatives use POSIX features only and validate numbers
   with explicit regular expressions, never numeric-string coercion; every awk
   case was run under mawk 1.3.4 in an `ubuntu:24.04` container during planning;
@@ -198,6 +199,8 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 - [x] (2026-10-15) Draft ExecPlan written.
 - [x] (2026-10-15) Expert-panel review (semantics, architecture and
   contracts, testing, operations, product) and revision.
+- [x] (2026-10-15) Firecrawl re-verification of POSIX awk, the CI runner
+  image, pytest-bdd, and syrupy after credits were restored.
 - [ ] Plan approved by the project owner, including owner assignments and
   interim defaults.
 - [ ] EP-M0: toolchain proof on realistic code.
@@ -211,9 +214,27 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 
 ## Surprises & discoveries
 
-- Observation: Firecrawl research failed with "Insufficient credits".
-  Evidence: two `firecrawl_scrape` calls on 2026-10-15. Impact: prior-art pages
-  were retrieved with WebFetch; citations are unchanged.
+- Observation: Firecrawl research first failed with "Insufficient credits",
+  so prior-art pages were read with WebFetch. After credits were restored the
+  same day, Firecrawl re-verified the load-bearing sources. Evidence and impact:
+  - The POSIX awk specification says input not ending in a newline is read
+    as if it did, so it still forms a final record, and that `for (key in
+    array)` order is unspecified. It also lets implementations accept
+    hexadecimal, infinity, and NaN spellings as numeric strings. This
+    confirms the `sorted-lines` comparison and the rule that awk
+    alternatives validate numbers with explicit regular expressions.
+  - The installed-software list for runner image `ubuntu-24.04` version
+    20261004.327.1 has no gawk entry, so CI's `awk` is Ubuntu's default,
+    mawk.
+  - The pytest-bdd 9.0.0 documentation confirms the `bdd_features_base_dir`
+    option, `scenarios()`, Scenario Outline substitution, and
+    `target_fixture`.
+  - syrupy's README still states "Pytest >=5.1, <9", but the 6.1.1 PyPI
+    metadata requires only `pytest>=8.0.0`, and the testing reviewer's
+    experiment passed on pytest 9.1.1. The README also describes advisory
+    file locks under xdist; the plan keeps the more conservative
+    `-n 0` rule for `--snapshot-update` because 6.1.1 warned about it in
+    practice.
 - Observation: Python's `int(s, 10)` accepts Arabic-Indic digits, digit
   separators, and signs (`٤٢`, `1_000`, `+7`), so the design's `int` adapter
   accepts all three while an awk validator accepts only `+7`. Evidence:
@@ -429,7 +450,9 @@ Axioms (trusted, not verified here):
   single-line basic strings exactly.
 - AXIOM-3: the `awk` on `PATH` implements the POSIX features the alternatives
   use (`match`, `substr`, `split`, regular-expression matching, `next`, `exit`
-  running `END`). Local evidence: GNU Awk 5.3.0 and mawk 1.3.4.
+  running `END`). Local evidence: GNU Awk 5.3.0 and mawk 1.3.4. POSIX lets
+  implementations differ on hexadecimal, infinity, and NaN numeric strings, so
+  alternatives must not depend on numeric-string coercion.
 - AXIOM-4: `subprocess.run` reports the child's exit status and captures its
   output bytes faithfully.
 
@@ -1534,3 +1557,7 @@ the repository's cyclomatic-complexity limit is 8).
   configuration, and a model-checked order property. Effect: eleven jobs and
   eighteen cases; the milestones keep their order, and EP-M0 now proves the
   toolchain on realistic code.
+- 2026-10-15: re-verified the load-bearing external sources with Firecrawl
+  once credits were restored (POSIX awk, runner image contents, pytest-bdd
+  9.0.0, syrupy 6.1.1). No conclusion changed; evidence citations in `Risks`,
+  `Surprises & discoveries`, and AXIOM-3 were strengthened.
