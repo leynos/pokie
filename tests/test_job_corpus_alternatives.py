@@ -5,9 +5,9 @@ so a job's outcome is specified once, in `job.toml`, and this module only
 reports what actually happened.
 """
 
+import dataclasses
 import os
 import pathlib
-import shutil
 
 import pytest
 from job_corpus import model
@@ -49,7 +49,7 @@ EXPECTED_JOB_COUNT = 1
 """Every job the corpus must hold. Raised as jobs land, ending at the plan's 11."""
 
 EXPECTED_CATEGORIES = {model.JobCategory.CAPTURE_VALIDATION}
-"""Every category the corpus must cover; all four once EP-M3 lands the filters."""
+"""Every category the corpus must cover; all three once EP-M3 lands its jobs."""
 
 REQUIRED_TAGS = {
     model.CaseTag.MALFORMED_RECORD,
@@ -57,33 +57,6 @@ REQUIRED_TAGS = {
     model.CaseTag.ADAPTER_REJECTION,
     model.CaseTag.UNICODE,
 }
-
-
-def awk_executable() -> str | None:
-    """Return the awk to test against, honouring ``JOB_CORPUS_AWK``.
-
-    Returns
-    -------
-    str | None
-        The named awk, or the first awk on ``PATH``, or ``None``.
-    """
-    return os.environ.get("JOB_CORPUS_AWK") or shutil.which("awk")
-
-
-def make_runner(awk: str | None) -> process_runner.ProcessRunner:
-    """Return a runner rooted at the committed corpus.
-
-    Parameters
-    ----------
-    awk : str | None
-        The awk the runner may start, or ``None``.
-
-    Returns
-    -------
-    process_runner.ProcessRunner
-        A runner that materializes inputs in a temporary directory.
-    """
-    return process_runner.ProcessRunner(corpus_root=CORPUS_ROOT, awk_executable=awk)
 
 
 def describe(outcome: model.ObservedOutcome) -> str:
@@ -136,14 +109,21 @@ def test_reference_reproduces_expected(
     job: model.CorpusJob,
     case: model.JobCase,
     implementation: model.ScriptImplementation,
+    process_runner_instance: process_runner.ProcessRunner,
 ) -> None:
     """The reference oracle must produce exactly the outcome the corpus specifies.
 
     The standard error is checked too, so the oracle cannot pass by crashing on
     a case that expects an ordinary result: an expected failure must announce
     itself with the failure category's prefix.
+
+    The oracle runs with no awk available. It models proposed pokie semantics
+    in pure Python, so a run that needed awk would be a defect in the corpus
+    rather than a missing dependency, and this makes that defect an
+    ``EvidenceFormatError`` instead of a silently different result.
     """
-    outcome = make_runner(awk=None).run(implementation, case)
+    runner = dataclasses.replace(process_runner_instance, awk_executable=None)
+    outcome = runner.run(implementation, case)
     why = (
         f"{job.job_id}/{case.case_id}: expected {case.expected.stdout!r} and "
         f"status {case.expected.exit_status}; observed {describe(outcome)}"
@@ -163,19 +143,26 @@ def test_alternative_agrees_or_declares_divergence(
     job: model.CorpusJob,
     case: model.JobCase,
     implementation: model.ScriptImplementation,
+    process_runner_instance: process_runner.ProcessRunner,
 ) -> None:
     """An alternative must agree unless it declares a divergence on that case.
 
     The second half matters as much as the first: a declaration whose case now
     agrees is stale, and a stale declaration would otherwise hide a mistaken
     expectation.
+
+    The awk this skip reasons about is read off the very runner that would
+    start it, so the precondition and the run cannot disagree about which
+    interpreter is under test.
     """
-    awk = awk_executable()
-    if implementation.kind is model.ScriptKind.AWK and awk is None:
+    if (
+        implementation.kind is model.ScriptKind.AWK
+        and process_runner_instance.awk_executable is None
+    ):
         if os.environ.get("CI"):
             pytest.fail(f"{job.job_id}: awk is required in continuous integration")
         pytest.skip("awk not on PATH")
-    outcome = make_runner(awk).run(implementation, case)
+    outcome = process_runner_instance.run(implementation, case)
     declared = {divergence.case_id for divergence in implementation.divergences}
     if case.case_id in declared:
         why = (
