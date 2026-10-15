@@ -57,8 +57,8 @@ is to avoid adding another interpreter compatibility matrix before pokie
 demonstrates value. Embedded CPython via Rust remains a later option; it is not
 required for the initial compiler.
 
-See [ADR 001](adr-001-cpython-ast-lowering.md),
-`docs/adr-001-cpython-ast-lowering.md`.
+See [ADR 0001](adrs/adr-0001-lower-pokie-through-python-asts.md),
+`docs/adrs/adr-0001-lower-pokie-through-python-asts.md`.
 
 ## 3. Language and lexical contract
 
@@ -202,8 +202,9 @@ inside nested functions or classes and outside rules. A plain `continue` or
 loops.
 
 `SystemExit` and interruption retain Python/process semantics, without an
-`end:` guarantee. See [ADR 002](adr-002-execution-scope-and-lifecycle.md),
-`docs/adr-002-execution-scope-and-lifecycle.md`.
+`end:` guarantee. See
+[ADR 0002](adrs/adr-0002-preserve-one-program-scope-and-ordered-lifecycle.md),
+`docs/adrs/adr-0002-preserve-one-program-scope-and-ordered-lifecycle.md`.
 
 ## 5. Capture and structural-pattern semantics
 
@@ -271,8 +272,8 @@ validation, and therefore violates the compilation boundary. Choose an explicit
 registration API or manifest through Q4's spike; defer in-program `@pattern`
 syntax until that phase-ordering problem is solved.
 
-See [ADR 003](adr-003-pattern-adapter-resolution.md),
-`docs/adr-003-pattern-adapter-resolution.md`.
+See [ADR 0003](adrs/adr-0003-resolve-adapters-through-an-explicit-registry.md),
+`docs/adrs/adr-0003-resolve-adapters-through-an-explicit-registry.md`.
 
 ## 7. Compilation and runtime boundaries
 

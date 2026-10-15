@@ -1,4 +1,4 @@
-# ADR 001: Lower pokie through Python ASTs
+# ADR 0001: Lower pokie through Python ASTs
 
 ## Status
 

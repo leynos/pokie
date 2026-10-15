@@ -1,0 +1,54 @@
+schema = 1
+id = "validate-user-records"
+title = "Count accepted and rejected user records"
+category = "capture-validation"
+goals = ["G2", "G3"]
+decisions = ["Q1", "Q5", "Q6"]
+contracts = ["DC-1", "DC-3", "DES-5"]
+evidence_status = "Assumption"
+provenance = ["docs/design-contracts.md §1", "docs/terms-of-reference.md §8.2 Table 4"]
+program = { path = "program.pokie", args = [] }
+
+[[alternatives]]
+kind = "reference"
+path = "reference.py"
+
+[[alternatives]]
+kind = "awk"
+path = "alternative.awk"
+comparison = "exact"
+divergences = [
+  { case = "python-int-spellings", reason = "The awk validator accepts only ASCII signed decimals." },
+]
+
+[[alternatives]]
+kind = "prior-art"
+tool = "PAWK"
+description = "pawk -B with a regex filter and the capture tuple m; conversion errors need try/except."
+
+[[alternatives]]
+kind = "status-quo"
+description = "A Python loop combining re.search, try/except ValueError, and a Counter."
+
+[[cases]]
+id = "design-example"
+tags = ["malformed-record", "guard-rejection", "adapter-rejection"]
+operands = ["users.log"]
+inputs = [{ name = "users.log", text = "user=ada uid=42\nuser=lin uid=no\nuser=sam uid=-1\n" }]
+expected = { stdout = "1 2\n", exit_status = 0, failure = "none" }
+earliest_task = "4.1.2"
+
+[[cases]]
+id = "python-int-spellings"
+tags = ["unicode"]
+operands = ["users.log"]
+inputs = [{ name = "users.log", text = "user=ravi uid=٤٢\nuser=kim uid=1_000\nuser=lee uid=+7\n" }]
+expected = { stdout = "3 0\n", exit_status = 0, failure = "none" }
+earliest_task = "4.1.2"
+
+[[observations]]
+id = "OBS-05"
+kind = "ergonomic-smell"
+contracts = ["DC-3"]
+questions = ["Q6"]
+summary = "int accepts non-ASCII digits, digit separators, signs, and surrounding whitespace, which is broader than many users expect from \"uid is an integer\"."
