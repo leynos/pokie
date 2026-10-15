@@ -268,6 +268,27 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   the error before the one-line anchor and passes after it. The whole suite
   also now runs from `tests/` (53 passed), which is recorded in the plan rather
   than left as an incidental benefit.
+- [x] (2026-10-16) EP-M0 review round 5: the CodeRabbit CLI review of `1a82f50`
+  confirmed the round-4 repair resolved and raised one new minor finding against
+  `tests/job_corpus/adapters/toml_jobs.py` — a file last changed by `7603f88`,
+  so again late-surfacing round-1 material rather than a regression. The
+  finding is that `schema != SCHEMA_VERSION` accepts `schema = true` and
+  `schema = 1.0`, because Python makes `True == 1` and `1.0 == 1`. The premise
+  verified by direct probe before any edit: both spellings loaded the corpus's
+  real job file as version 1, while `"1"` and `2` were correctly refused — so
+  the two malformed spellings were the *only* ones admitted, which is exactly
+  the silent acceptance LEM-LOAD-1 and the plan's loader strictness exist to
+  prevent. Repaired red-first in `tests/test_job_corpus_toml.py` (new, the
+  artefact LEM-LOAD-1 names), whose seven version spellings reproduced two
+  failures — the `boolean` and `float` parameters did not raise — before the
+  fix and pass after it. The fix routes `schema` through the shared integer
+  guard, which `_load_expected` already used for `exit_status`; the guard was
+  renamed `_status` -> `_integer` because the new call site reads a version,
+  not a status, and the old name described its first caller rather than its
+  job. The guard's docstring now states why the type check rather than a value
+  check is what rejects the coercible spellings. A sweep for sibling
+  comparisons against a constant in `adapters/` found none with this defect:
+  the others compare two already-validated strings or two literals.
 - [ ] EP-M1: domain policy, comparison, and audit with unit and property
   tests.
 - [ ] EP-M2: adapters, runner, report snapshots, and unhappy scenarios.
@@ -528,6 +549,26 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   implicit assumption about where it was started, and that assumption is
   cheapest to state in a test at the moment it is noticed.
 
+- **A type-blind comparison is not a type check, and Python's numeric equality
+  hides the difference.** The round-5 review found `schema != SCHEMA_VERSION`
+  admitting `schema = true` and `schema = 1.0`. The severity is easy to
+  underrate because both spellings are "almost right" and the loader looks
+  strict: it does reject `"1"` and `2`, so the two coercible spellings were the
+  *only* malformed ones it let through, which is worse than admitting several —
+  a reader seeing three rejections concludes the check works. `True == 1` and
+  `1.0 == 1` are the whole mechanism, and they make a `==` against an integer
+  constant a value comparison that silently loses the type. The general rule
+  for the rest of this task: where the schema names an integer, the loader must
+  establish the type before comparing, because every constant it compares
+  against is itself a number. The inverse also holds and is why this was not
+  caught earlier — the plan's own `exit_status` field never exposed it, since
+  `_load_expected` already routed through a helper that checks
+  `isinstance(value, bool)` explicitly; only the schema version took the
+  shortcut. That helper was named `_status` after its first caller, so a second
+  caller reading a version number made the name read wrong at the call site; it
+  is now `_integer`, which is what it returns, and its docstring states why the
+  shape of the check is the substance rather than a formality.
+
 ## Decision log
 
 - Decision: represent each job as a directory under `tests/job_corpus/jobs/`
@@ -634,6 +675,19 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   discuss input names; no committed case is affected, and a case needing a
   nested file can use a flat name. Date/Author: 2026-10-16, implementation
   agent after CodeRabbit review round 3.
+- Decision: every integer the `job.toml` schema reads is checked for type
+  before it is compared, through one shared `_integer` helper that rejects
+  booleans and non-integers; no call site compares a raw TOML value against an
+  integer constant. Rationale: Python makes `True == 1` and `1.0 == 1`, so a
+  bare `!=` against an integer constant accepts a boolean or float spelling of
+  the same value — the loader's strictness is then a property of which types
+  happen to be compared rather than of the check. The helper's earlier name,
+  `_status`, described its first caller (`exit_status`) rather than its job, so
+  the schema version's arrival as a second caller made the name read wrong
+  where it is used; it is `_integer` now. `_fail`'s location for the version
+  check is unchanged, so the diagnostic a malformed file produces still names
+  the file and the `schema` key. Date/Author: 2026-10-16, implementation agent
+  after CodeRabbit review round 5.
 
 ## Outcomes & retrospective
 
@@ -858,10 +912,16 @@ Obligations:
   - Domain: `text` inputs with and without a final `\n`, `hex` inputs with
     invalid UTF-8, empty `text`, a multi-line string containing `\r\n`
     (rejected), missing required keys, wrong types, unknown enum values,
-    unknown keys, and a schema version other than 1.
+    unknown keys, and a schema version other than 1. "Wrong types" includes
+    values Python would otherwise coerce to an expected integer: `True == 1`
+    and `1.0 == 1`, so a boolean or float spelling of the schema version is a
+    wrong type the loader must refuse rather than read as version 1.
   - Artefact: `tests/test_job_corpus_toml.py`.
   - Non-vacuity: assertions compare bytes, so a loader that appends or
     strips a final newline fails the unterminated example.
+  - Progress: the schema-version part of the domain has landed (see the
+    Progress entry for EP-M0 review round 5); the input-encoding and
+    key-shape parts land with EP-M2.
 - Obligation INV-ORDER-1: for `filter-error-lines`, the reference output is
   exactly the input records matching `\bERROR\b`, in input order, each followed
   by a newline.

@@ -30,11 +30,11 @@ from job_corpus.adapters.toml_values import (
     _corpus_path,
     _dotted,
     _fail,
+    _integer,
     _member,
     _members,
     _no_unknown_keys,
     _required,
-    _status,
     _strings,
     _table,
     _tables,
@@ -115,7 +115,7 @@ def _load_expected(value: object, where: Where) -> model.ExpectedOutcome:
     _all_required(table, _REQUIRED_EXPECTED_KEYS, where)
     return model.ExpectedOutcome(
         stdout=_text(table["stdout"], _dotted(where, "stdout")).encode("utf-8"),
-        exit_status=_status(table["exit_status"], _dotted(where, "exit_status")),
+        exit_status=_integer(table["exit_status"], _dotted(where, "exit_status")),
         failure=_member(model.Failure, table["failure"], _dotted(where, "failure")),
     )
 
@@ -319,9 +319,10 @@ def load_job(document_text: str, relative: pathlib.PurePosixPath) -> model.Corpu
     where: Where = (relative, "")
     table = _table(document, where)
     _no_unknown_keys(table, _JOB_KEYS, where)
-    schema = _required(table, "schema", where)
+    schema_where = _dotted(where, "schema")
+    schema = _integer(_required(table, "schema", where), schema_where)
     if schema != SCHEMA_VERSION:
-        _fail((relative, "schema"), f"expected {SCHEMA_VERSION}, got {schema!r}")
+        _fail(schema_where, f"expected {SCHEMA_VERSION}, got {schema!r}")
     _all_required(table, _REQUIRED_JOB_KEYS, where)
     directory = relative.parent.name
     document_id = _text(table["id"], (relative, "id"))
