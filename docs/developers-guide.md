@@ -12,12 +12,17 @@ The interpreter is not implemented. Begin with the
 Record semantics and compiler boundaries live in the design and structured
 contracts, not in generated scaffold modules. Proposed ADRs require explicit
 ratification and evidence; do not describe their capabilities as delivered.
-Update the users' guide when a roadmap slice ships user-visible behaviour.
+Store architectural decision records as `docs/adrs/adr-nnnn-title-slug.md` and
+requests for comments as `docs/rfcs/rfc-nnnn-title-slug.md`, where `nnnn` is
+the four-digit, zero-padded sequence number and `title-slug` is the title in
+kebab case; the [documentation style guide](documentation-style-guide.md)
+defines the required sections. Update the users' guide when a roadmap slice
+ships user-visible behaviour.
 
 Before adding runtime helpers, search for existing equivalents. New helpers
 must serve a defined compiler or execution feature, with scope and reuse policy
 documented in the design/contracts. Keep extension registration interfaces
-synchronized with ADR 003 and this guide when they are selected.
+synchronized with ADR 0003 and this guide when they are selected.
 
 ## Local workflow
 

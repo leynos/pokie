@@ -16,11 +16,11 @@ set.
 
 ## Proposed decision records
 
-- [ADR 001: CPython AST lowering](adr-001-cpython-ast-lowering.md)
+- [ADR 0001: Lower pokie through Python ASTs](adrs/adr-0001-lower-pokie-through-python-asts.md)
   records the initial compiler/execution direction and alternatives.
-- [ADR 002: Execution scope and lifecycle](adr-002-execution-scope-and-lifecycle.md)
+- [ADR 0002: Preserve one program scope and ordered lifecycle](adrs/adr-0002-preserve-one-program-scope-and-ordered-lifecycle.md)
   records persistent scope, binding commit, and control/finalization policy.
-- [ADR 003: Pattern adapter resolution](adr-003-pattern-adapter-resolution.md)
+- [ADR 0003: Resolve adapters through an explicit registry](adrs/adr-0003-resolve-adapters-through-an-explicit-registry.md)
   records registry resolution and explicit rejection outcomes.
 
 ## Project guides

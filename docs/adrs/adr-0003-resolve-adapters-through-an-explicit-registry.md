@@ -1,4 +1,4 @@
-# ADR 003: Resolve adapters through an explicit registry
+# ADR 0003: Resolve adapters through an explicit registry
 
 ## Status
 

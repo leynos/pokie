@@ -351,8 +351,10 @@ binding. Store them under `docs/rfcs/`.
 
 #### RFC naming convention
 
-Name RFC files using the pattern `0001-short-topic.md`, where `0001` is a
-zero-padded sequence number. Place RFCs in the `docs/rfcs/` directory.
+Name RFC files using the pattern `docs/rfcs/rfc-nnnn-title-slug.md`, where
+`nnnn` is the four-digit, zero-padded sequence number and `title-slug` is the
+RFC title in kebab case (e.g. `docs/rfcs/rfc-0001-streaming-record-reader.md`).
+Place RFCs in the `docs/rfcs/` directory.
 
 - Number RFCs sequentially in allocation order rather than by date.
 - Do not renumber existing RFCs after publication. Gaps are acceptable when
@@ -498,9 +500,17 @@ providing a historical record for future maintainers.
 
 ### Naming convention
 
-Name ADR files using the pattern `adr-NNN-short-description.md`, where `NNN` is
-a zero-padded sequence number (e.g. `adr-001-async-fixtures-and-tests.md`).
-Place ADRs in the `docs/` directory.
+Name ADR files using the pattern `docs/adrs/adr-nnnn-title-slug.md`, where
+`nnnn` is the four-digit, zero-padded sequence number and `title-slug` is the
+ADR title in kebab case (e.g.
+`docs/adrs/adr-0001-async-fixtures-and-tests.md`). Place ADRs in the
+`docs/adrs/` directory.
+
+- Number ADRs sequentially in allocation order rather than by date.
+- Do not renumber existing ADRs after publication. Gaps are acceptable when
+  numbers are reserved, drafted on another branch, or intentionally skipped.
+- Write the number with all four digits wherever the ADR is cited, for example
+  `ADR 0003` in prose or `ADR-0003` in an amendment banner.
 
 ### Required sections
 
@@ -514,7 +524,7 @@ Every ADR must include the following sections in order:
   for readers unfamiliar with the history.
 
 When an accepted ADR needs a targeted correction rather than replacement, add an
-`Amended by ADR-NNN (YYYY-MM-DD)` banner to its Status section and an
+`Amended by ADR-nnnn (YYYY-MM-DD)` banner to its Status section and an
 `## Amendments` section that preserves the original decision as history.
 
 ### Conditional sections
@@ -556,7 +566,7 @@ Include these sections as appropriate to the decision's complexity:
 ### ADR template
 
 ```markdown
-# Architectural decision record (ADR) NNN: <title>
+# Architectural decision record (ADR) nnnn: <title>
 
 ## Status
 
