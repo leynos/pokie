@@ -66,10 +66,10 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   programs are labelled "proposed, not executable".
 - The corpus must not silently change a design contract. A job that cannot be
   specified without contradicting `docs/design-contracts.md`,
-  `docs/pokie-design.md`, or ADRs 001–003 is recorded as an observation of kind
-  `contradiction`, which flips the audit verdict; the implementer then sets
-  this plan to `BLOCKED` and escalates. This is the falsification output the
-  phase 1 idea asks for; it must not be smoothed over.
+  `docs/pokie-design.md`, or ADRs 0001–0003 is recorded as an observation of
+  kind `contradiction`, which flips the audit verdict; the implementer then
+  sets this plan to `BLOCKED` and escalates. This is the falsification output
+  the phase 1 idea asks for; it must not be smoothed over.
 - Decision owners must be roles that exist today. The only established role is
   the project owner (`@leynos`, terms-of-reference §4 Table 2). Do not invent
   sponsors, teams, or people.
@@ -209,7 +209,7 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 - [ ] EP-M2: adapters, runner, report snapshots, and unhappy scenarios.
 - [ ] EP-M3: corpus content and executable alternatives.
 - [ ] EP-M4: decision register document and register tests.
-- [ ] EP-M5: documentation, ADR 004, Phase 1 findings, and roadmap
+- [ ] EP-M5: documentation, ADR 0004, Phase 1 findings, and roadmap
   completion.
 
 ## Surprises & discoveries
@@ -318,7 +318,7 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   owner is the only established role; Q8 itself asks who else should hold
   authority. Requires confirmation at plan approval. Date/Author: 2026-10-15,
   planning agent after panel review.
-- Decision: ADR 004 records only the corpus schema and the reference and
+- Decision: ADR 0004 records only the corpus schema and the reference and
   divergence model; the register format and module boundaries go in the
   developers' guide. Rationale: the documentation style guide asks for one
   decision per ADR, and later tasks depend on the schema. Date/Author:
@@ -357,7 +357,7 @@ holds only a scaffold `hello()` function. The language exists only as documents:
   guard, adapter, binding) and the evidence statuses `Established`,
   `Agreed basis`, `Assumption`, `Proposed contract`, `Open question`, and
   `Deferred`.
-- ADRs 001–003 (`docs/adr-00N-*.md`) are all `Proposed`.
+- ADRs 0001–0003 (`docs/adrs/adr-000n-*.md`) are all `Proposed`.
 - `docs/roadmap.md` lists tasks as `- [ ] N.N.N.` checkboxes.
 
 Terms used in this plan:
@@ -406,8 +406,8 @@ standards (#12)"):
   cases), DES-9 (failure model), DES-10 (verification evidence).
 - Contracts: `docs/design-contracts.md` DC-1 (user-record example), DC-3
   (adapter catalogue), DC-4 (CLI outcomes, Table 2).
-- ADRs: ADR-002 (execution scope and lifecycle, Proposed), ADR-003 (pattern
-  adapter resolution, Proposed). ADR-001 is context only.
+- ADRs: ADR-0002 (execution scope and lifecycle, Proposed), ADR-0003 (pattern
+  adapter resolution, Proposed). ADR-0001 is context only.
 - Roadmap: RM-1.1.1 success criterion "filtering, capture validation, and
   aggregation jobs have inputs, expected outcomes, alternatives, and assigned
   decision owners for Q1–Q8", and the phase 1 falsification clause.
@@ -429,7 +429,7 @@ RM-1.1.1 owners -> TOR-Q1..TOR-Q8 -> EP-M4 -> INV-REG-1, INV-REG-2
 RM-1.1.1 phase 1 falsification -> EP-M1, EP-M5 -> INV-VERDICT-1 -> docs/job-corpus.md "Phase 1 findings"
 DC-1 -> validate-user-records/design-example -> INV-ORACLE-1
 DES-4.1 -> unterminated, empty-field, out-of-range, multiple-files cases -> INV-COV-1
-DES-4.2, DES-4.3, ADR-002 -> filter-first-timeouts, filter-skip-comments, invalid-utf8 cases
+DES-4.2, DES-4.3, ADR-0002 -> filter-first-timeouts, filter-skip-comments, invalid-utf8 cases
 DES-5, DC-1 binding transaction -> validate-last-good-uid -> OBS-08
 DC-3 -> declared divergences on python-int-spellings and float-spellings -> OBS-05, OBS-09 -> TOR-Q6
 DC-4 Table 2 -> Failure enum -> INV-FAIL-1
@@ -702,7 +702,7 @@ end:
 - Case `stops-after-two` (tags `early-exit`; earliest 2.2.1): records `a`,
   `timeout 1`, `b`, `timeout 2`, `timeout 3`. Expected
   `timeout 1\ntimeout 2\nread 4\n`, status 0: `exit` still runs `end:` and `NR`
-  counts delivered records only (ADR-002).
+  counts delivered records only (ADR-0002).
 - Alternatives: awk; status quo, a Python loop with `break` and a counter.
 
 `filter-skip-comments` (G1; Q1, Q5; provenance: synthetic). Program:
@@ -817,7 +817,7 @@ end:
   not publish its candidate binding.
 - Alternatives: awk (natural, because awk has no pattern bindings); status
   quo.
-- Observations: OBS-08 (host divergence, DES-5 and ADR-002): Python's own
+- Observations: OBS-08 (host divergence, DES-5 and ADR-0002): Python's own
   `match` statement leaves `uid` as `-1` here, so the reference implementation,
   and later the lowering in task 2.1.2, must implement the binding transaction
   explicitly rather than relying on native `match`.
@@ -848,7 +848,7 @@ end:
   status 0.
 - Case `invalid-utf8` (tags `input-failure`; earliest 2.2.2): one valid CLF
   record then a record containing `\xff`. Expected empty output, status 1,
-  failure `input`: `end:` does not run after an input failure (ADR-002), so no
+  failure `input`: `end:` does not run after an input failure (ADR-0002), so no
   partial aggregate is printed.
 - Alternatives: awk with `comparison = "sorted-lines"` (POSIX leaves
   `for (key in array)` order unspecified); shell
@@ -1049,7 +1049,7 @@ observations that bear on it, and what would close it:
 - Q3: interim, read-only fields and one reader (design §4.1); 1.1.2 ratifies
   this for v1, and 6.1.1 decides any expansion; OBS-07.
 - Q4: interim, built-in catalogue only; OBS-04.
-- Q5: interim, ADR-002 as proposed; OBS-01, OBS-02, OBS-03, OBS-06, OBS-08.
+- Q5: interim, ADR-0002 as proposed; OBS-01, OBS-02, OBS-03, OBS-06, OBS-08.
 - Q6: interim, `digits`, `hexstr`, `int`, `float` as DC-3; OBS-04, OBS-05,
   OBS-06, OBS-09.
 - Q7: interim, no thresholds and no speed claims; thresholds must be agreed
@@ -1196,7 +1196,7 @@ outline uses one job per category to keep runtime and failure noise low.
   - Recovery: revert the commit.
   - Remaining gaps: documentation.
   - Compatibility decision: none.
-- EP-M5: documentation, ADR 004, Phase 1 findings, and roadmap updated; plan
+- EP-M5: documentation, ADR 0004, Phase 1 findings, and roadmap updated; plan
   `COMPLETE`.
   - Requirements: AGENTS.md documentation duties; INV-VERDICT-1 at document
     level.
@@ -1214,7 +1214,8 @@ outline uses one job per category to keep runtime and failure noise low.
 
 ## Documentation changes
 
-- `docs/adr-004-job-corpus-schema-and-reference-oracle.md` (new, status
+- `docs/adrs/adr-0004-define-the-job-corpus-schema-and-reference-oracle.md`
+  (new, title "Define the job corpus schema and reference oracle", status
   `Proposed`): context (no interpreter; RM-1.1.1), decision drivers, options
   considered (executable Markdown corpus; TOML corpus with a reference oracle
   and declared divergences; YAML corpus; Gherkin-only examples), chosen option,
@@ -1233,9 +1234,9 @@ outline uses one job per category to keep runtime and failure noise low.
 - `docs/context.md` §2: add job, case, reference implementation, alternative,
   declared divergence, observation, and decision owner.
 - `docs/design-contracts.md`: a short section naming the corpus schema as the
-  evidence contract for later tasks and linking ADR 004.
+  evidence contract for later tasks and linking ADR 0004.
 - `docs/pokie-design.md` §10: one paragraph naming the corpus as the input to
-  differential checks, linking ADR 004; §11: link the register.
+  differential checks, linking ADR 0004; §11: link the register.
 - `docs/terms-of-reference.md` §9: replace "Owners are unassigned unless
   stated. Roadmap task 1.1.1 assigns decision owners" with a pointer to
   `docs/decision-register.md`; §7 Table 3: link the corpus from "Filtering and
@@ -1251,8 +1252,11 @@ outline uses one job per category to keep runtime and failure noise low.
   requirement and `JOB_CORPUS_AWK`, and the Linux-only scope.
 - `docs/users-guide.md`: short section "Representative jobs" explaining that
   the corpus shows what pokie is intended to do, that its programs are proposed
-  and not executable, and where to read expected outcomes.
-- `docs/contents.md`: add the job corpus and register documents, and ADR 004
+  and not executable, and where to read expected outcomes. The section links to
+  the corpus instead of embedding fenced programs, because the documentation
+  style guide requires every fenced example in a user-facing document to be
+  executable and tested, and no pokie program can run yet.
+- `docs/contents.md`: add the job corpus and register documents, and ADR 0004
   under "Proposed decision records".
 - `docs/repository-layout.md`: add `tests/job_corpus/`, `tests/features/`,
   and `tests/__snapshots__/`.
@@ -1531,8 +1535,8 @@ parametrization, syrupy), `hypothesis` (properties), `python-errors-and-logging`
 
 Signposted documents: `docs/terms-of-reference.md` §§3–9,
 `docs/pokie-design.md` §§1–6, 9–11, `docs/design-contracts.md` §§1, 3–4,
-`docs/context.md`, ADRs 001–003, `docs/developers-guide.md`,
-`docs/documentation-style-guide.md` (ADR template),
+`docs/context.md`, ADRs 0001–0003, `docs/developers-guide.md`,
+`docs/documentation-style-guide.md` (ADR naming convention and template),
 `docs/scripting-standards.md` (subprocess hygiene), and
 `docs/complexity-antipatterns-and-refactoring-strategies.md` (guard clauses,
 dispatch tables, extract method, and the warning against speculative layering;
@@ -1561,3 +1565,12 @@ the repository's cyclomatic-complexity limit is 8).
   once credits were restored (POSIX awk, runner image contents, pytest-bdd
   9.0.0, syrupy 6.1.1). No conclusion changed; evidence citations in `Risks`,
   `Surprises & discoveries`, and AXIOM-3 were strengthened.
+- 2026-10-15: adopted the repository's new decision-record naming
+  convention (`docs/adrs/adr-nnnn-title-slug.md`,
+  `docs/rfcs/rfc-nnnn-title-slug.md`) and the refreshed documentation style
+  guide. ADR citations and trace identifiers now use four digits (ADR-0002,
+  ADR-0003), and the planned record is
+  `docs/adrs/adr-0004-define-the-job-corpus-schema-and-reference-oracle.md`.
+  The users' guide change now avoids fenced programs, following the refreshed
+  guide's tested-example rule. No milestone, obligation, or acceptance
+  criterion changed.
