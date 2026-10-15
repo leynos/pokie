@@ -24,6 +24,57 @@ from job_corpus.ports import EvidenceFormatError
 _TIMEOUT_STATUS = -1
 
 
+def _inputs_by_name(case: model.JobCase) -> dict[str, model.InputFile]:
+    """Return the case's inputs keyed by name, refusing any ambiguity.
+
+    Every input name must be a bare file name, and no two may coincide. Both
+    rules protect the same thing: the name is what maps an operand to bytes, so
+    a name that is really a path, or one used twice, would have the run read
+    bytes the case's own operands do not select.
+
+    Parameters
+    ----------
+    case : model.JobCase
+        The case whose inputs the lookup is built from.
+
+    Returns
+    -------
+    dict[str, model.InputFile]
+        The inputs keyed by name.
+
+    Raises
+    ------
+    EvidenceFormatError
+        If a name is not a bare file name, or two inputs share one.
+    """
+    by_name: dict[str, model.InputFile] = {}
+    for input_file in case.inputs:
+        name = pathlib.PurePosixPath(input_file.name)
+        if name.name != input_file.name or name.name in {"", ".", ".."}:
+            message = (
+                f"the input name {input_file.name!r} is not a bare file name; "
+                "an operand can only select a file directly inside the run "
+                "directory"
+            )
+            raise EvidenceFormatError(
+                message,
+                path=pathlib.PurePosixPath(case.case_id),
+                key="inputs",
+            )
+        if input_file.name in by_name:
+            message = (
+                f"the case lists two inputs named {input_file.name!r}, "
+                "so its operands could not say which one they mean"
+            )
+            raise EvidenceFormatError(
+                message,
+                path=pathlib.PurePosixPath(case.case_id),
+                key="inputs",
+            )
+        by_name[input_file.name] = input_file
+    return by_name
+
+
 def _materialize(
     case: model.JobCase, directory: pathlib.Path
 ) -> tuple[list[str], bytes]:
@@ -54,9 +105,11 @@ def _materialize(
     Raises
     ------
     EvidenceFormatError
-        If an operand names no input in the case, or the case reads standard
-        input without exactly one input to feed it.
+        If an operand names no input in the case, the case reads standard
+        input without exactly one input to feed it, or its input names are not
+        usable as operands (see `_inputs_by_name`).
     """
+    by_name = _inputs_by_name(case)
     if not case.operands or case.operands == ("-",):
         if len(case.inputs) != 1:
             message = (
@@ -69,7 +122,6 @@ def _materialize(
                 key="inputs",
             )
         return list(case.operands), case.inputs[0].content
-    by_name = {input_file.name: input_file for input_file in case.inputs}
     if "-" in case.operands:
         message = (
             "'-' cannot be combined with file operands, because the case "

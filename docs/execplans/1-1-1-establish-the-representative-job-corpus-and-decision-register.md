@@ -239,6 +239,19 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   against uncommitted tree `git diff | git hash-object --stdin` = `d2c79fa6`,
   with `test` at 50 passed and the coverage command at 50 passed under
   instrumentation.
+- [x] (2026-10-16) EP-M0 review round 3: the CodeRabbit CLI review of `a1fd5e6`
+  reported all five round-2 findings resolved by direct read of the head blobs
+  and raised one new minor finding against `process_runner.py`. Both of its
+  premises verified against source, and the absolute-path case proved worse
+  than reported: `pathlib`'s `/` discards the left operand when the right is
+  absolute, so an absolute input name would have the harness write outside its
+  temporary directory, against the plan's own constraint. Repaired red-first —
+  `tests/test_job_corpus_runner.py` grew two tests, both observed failing
+  (`DID NOT RAISE EvidenceFormatError`) before `_inputs_by_name` was added. The
+  reachability check that preceded the fix is part of the finding: the loader
+  accepts a path-like or duplicated `name`, so neither was merely theoretical.
+  Recorded as obligation INV-RUNNER-1 and as the shared root cause of all three
+  runner defects review has found.
 - [ ] EP-M1: domain policy, comparison, and audit with unit and property
   tests.
 - [ ] EP-M2: adapters, runner, report snapshots, and unhappy scenarios.
@@ -460,6 +473,27 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   later can exercise a runner path that no earlier case does, so the runner's
   operand rules deserve direct unit tests rather than coverage that arrives
   only when a job happens to need them.
+- **Three silent-wrong-answer classes in one function, none found by a gate.**
+  The round-3 review found two more instances in `_materialize`, beside the
+  stdin bug above, and all three share a shape: the runner does something
+  plausible instead of refusing, and the corpus reports it as a result. An
+  input name that is a path rather than a bare file name would write outside
+  the run's temporary directory — `pathlib`'s `/` discards the left operand
+  when the right is absolute, so `name = "/etc/passwd"` writes exactly there,
+  and that is the constraint the plan states in `Constraints`. A name used
+  twice collapsed in the name-to-bytes mapping, the dict comprehension keeping
+  the last, so an operand could be fed bytes the case never selected for it.
+  Both are unreachable from today's corpus, which declares one input per case
+  with a plain name, which is precisely why no gate could have caught them.
+  Impact for the remaining milestones: reachability from the committed corpus
+  is not evidence that a harness rule is sound, because EP-M3 adds cases and
+  the corpus is the input. The runner now refuses both through
+  `_inputs_by_name`, with `INV-RUNNER-1` making the refusals an obligation
+  rather than incidental behaviour. The cost of refusing is that a genuinely
+  useful future capability — a case selecting a file in a subdirectory — needs
+  a deliberate change here rather than happening by accident; that trade is
+  taken knowingly, since a nested file can be given a flat name just as well,
+  while a silent escape cannot be recovered from.
 
 ## Decision log
 
@@ -553,6 +587,20 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   permitted additions. `uv lock` changed three specifier lines and no locked
   version, so today's environment is unaffected. Date/Author: 2026-10-16,
   implementation agent after CodeRabbit review round 2.
+- Decision: an input name must be a bare file name and must be unique within
+  its case; both are refused with `EvidenceFormatError` rather than handled.
+  Rationale: the name is the key mapping an operand to bytes and the path
+  component inside the run directory, so a path-like name escapes the temporary
+  directory and a duplicate silently makes the mapping ambiguous. Neither is
+  reachable from the current one-input-per-case corpus, so the rules bind
+  future evidence, not today's. The alternative — accepting a nested name and
+  flattening it for the run — was rejected because the operand and the file
+  would then disagree about which file the case selected, which is the same
+  class of silent wrong answer. Deviation note: this narrows what `job.toml`
+  may express relative to the plan's `Corpus specification`, which does not
+  discuss input names; no committed case is affected, and a case needing a
+  nested file can use a flat name. Date/Author: 2026-10-16, implementation
+  agent after CodeRabbit review round 3.
 
 ## Outcomes & retrospective
 
@@ -823,6 +871,37 @@ Obligations:
     `tests/job_corpus/vulture_whitelist.py`.
   - Non-vacuity: the guard fails if Vulture cannot run, so an environment
     without `vulture` reports an error rather than passing.
+
+- Obligation INV-RUNNER-1: a case whose operands or input names the runner
+  cannot interpret is refused with `EvidenceFormatError` naming the offending
+  key, never resolved by a guess or by writing outside the run directory.
+  - Method: unit tests over the real runner and the real oracle, each
+    constructed case differing from a committed one only in the property under
+    test, so the runner is exercised through its public `run`.
+  - Rationale: this is the harness's worst failure mode, because it does not
+    look like one. A case whose bytes never reach the program yields the same
+    plausible count that an uninteresting input yields, so the run reports a
+    finding about pokie rather than a defect in the evidence. Three instances
+    of that class were found in review, not by a failing gate: operand-less and
+    mixed stdin cases fed the wrong bytes or none, an absolute or relative
+    input name would have written outside the temporary directory (`pathlib`
+    discards the left operand of `/` when the right is absolute), and two
+    inputs sharing a name collapsed in the name-to-bytes mapping. Each was
+    fixed with a red-first unit test that observed the silent behaviour before
+    the fix.
+  - Domain: every documented route an operand can take — a bare named operand,
+    `-`, no operand, `-` mixed with file operands, an operand naming no listed
+    input, several inputs with standard input, an input name that is not a bare
+    file name, and a duplicated input name.
+  - Artefact: `tests/test_job_corpus_runner.py`.
+  - Evidence: `make test`. Red before the fix, for the four cases a committed
+    job could not reach: `b'0 0\n'` where `b'1 0\n'` was required, and
+    `DID NOT RAISE` for the three refusals, two of them in a first red run of
+    this round and two in a second.
+  - Non-vacuity: the committed corpus obeys every rule, which is exactly why
+    these cases are synthetic — they are the only cases that can show what the
+    runner does when a case does not. `INV-ORACLE-1` and `INV-ORACLE-2` bind
+    the committed cases; this obligation binds the runner's refusals.
 
 No obligation needs symbolic execution or a proof: the domain logic is set
 arithmetic, ordering, and byte comparison, which enumerated examples and
