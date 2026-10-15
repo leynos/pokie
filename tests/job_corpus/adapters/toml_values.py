@@ -138,8 +138,14 @@ def _text(value: object, where: Where) -> str:
     return value
 
 
-def _status(value: object, where: Where) -> int:
+def _integer(value: object, where: Where) -> int:
     """Return an integer, rejecting booleans, or report the value as malformed.
+
+    Every integer the schema reads goes through here, so a field cannot be
+    stricter or laxer than its neighbours. The check is on the type rather than
+    on the value because Python makes ``True == 1`` and ``1.0 == 1``: a boolean
+    or a float would otherwise compare equal to the integer a caller expects
+    and be accepted as one.
 
     Parameters
     ----------
@@ -151,9 +157,9 @@ def _status(value: object, where: Where) -> int:
     Returns
     -------
     int
-        The value as an exit status. A value that is not an integer, or that
-        is a boolean, which Python would otherwise let pass as 0 or 1, is
-        reported through `_fail`.
+        The value as an integer. A value that is not one, or that is a boolean
+        which Python would otherwise let pass as 0 or 1, is reported through
+        `_fail`.
     """
     if not isinstance(value, int) or isinstance(value, bool):
         _fail(where, "expected an integer")
