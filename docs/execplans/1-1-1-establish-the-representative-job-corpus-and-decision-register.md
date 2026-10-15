@@ -1,9 +1,9 @@
 # Establish the representative job corpus and decision register
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & discoveries`,
-`Decision log`, `Outcomes & retrospective`, `Conformance basis`, and
-`Verification plan` must be kept up to date as work proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & discoveries`, `Decision log`,
+`Outcomes & retrospective`, `Conformance basis`, and `Verification plan` must
+be kept up to date as work proceeds.
 
 Status: DRAFT
 
@@ -31,15 +31,15 @@ each question to the corpus jobs that bear on it.
 
 The corpus is executable evidence, not prose. Running `make test` loads every
 job from `tests/job_corpus/jobs/`, runs each job's Python alternative and awk
-alternative as real subprocesses against the job's inputs, and checks that:
-the Python alternative reproduces every expected outcome exactly; the awk
+alternative as real subprocesses against the job's inputs, and checks that: the
+Python alternative reproduces every expected outcome exactly; the awk
 alternative either agrees or diverges only on cases where the job declares a
 divergence with a reason; the corpus covers all three job categories and the
 required edge cases; and the decision register assigns exactly one owner to
 each of Q1–Q8 and is consistent with the jobs. The proposed pokie programs are
-recorded but deliberately not executed, because no pokie implementation
-exists; task 1.1.2 ratifies them against the design, and tasks 2.1.3 onwards
-execute them.
+recorded but deliberately not executed, because no pokie implementation exists;
+task 1.1.2 ratifies them against the design, and tasks 2.1.3 onwards execute
+them.
 
 Success is observable as follows. `make test` passes, and its output includes
 one passing test per job case for the Python alternatives (for example,
@@ -62,14 +62,15 @@ expected `1 3` and observed `1 2`. Deleting the Q5 row from
   is the falsification signal the roadmap's phase 1 idea asks for; it must not
   be smoothed over.
 - Decision owners must be real accountable roles that exist today. The only
-  established role is the project owner (`@leynos`, terms-of-reference §4
-  Table 2). Do not invent sponsors, teams, or people.
+  established role is the project owner (`@leynos`, terms-of-reference §4 Table
+  2). Do not invent sponsors, teams, or people.
 - No runtime dependencies are added. `pyproject.toml` `dependencies` stays
-  empty. Only the development dependencies named in `Interfaces and
-  dependencies` may be added.
+  empty. Only the development dependencies named in
+  `Interfaces and dependencies` may be added.
 - The corpus harness is test-support code that lives under `tests/` and is not
-  packaged in the wheel (`[tool.hatch.build.targets.wheel] packages =
-  ["pokie"]` already guarantees this).
+  packaged in the wheel
+  (`[tool.hatch.build.targets.wheel] packages = ["pokie"]` already guarantees
+  this).
 - Every code file stays under 400 lines; functions respect the repository's
   Ruff limits (`max-complexity = 8`, `max-args = 4`, `max-locals = 10`,
   `max-bool-expr = 2`).
@@ -95,8 +96,8 @@ expected `1 3` and observed `1 2`. Deleting the Q5 row from
 - Ownership: if the project owner rejects the proposed owner assignment for any
   question during review, stop and update the register only as directed.
 - Tooling: if the duplication, dead-code, or Pylint gates reject the per-job
-  alternative scripts and the fix would require excluding `tests/` from a
-  gate, stop and escalate rather than weakening the gate.
+  alternative scripts and the fix would require excluding `tests/` from a gate,
+  stop and escalate rather than weakening the gate.
 - Runtime: if the new tests add more than 60 seconds to `make test` on this
   machine, stop and reduce subprocess fan-out before continuing.
 - Portability: if continuous integration's `awk` disagrees with local GNU Awk
@@ -118,16 +119,16 @@ expected `1 3` and observed `1 2`. Deleting the Q5 row from
   `ubuntu-latest` image may resolve `awk` to mawk. Severity: medium.
   Likelihood: medium. Mitigation: restrict awk alternatives to POSIX features
   (no `asort`, `PROCINFO`, three-argument `match`, or `gensub`); run awk with
-  `LC_ALL=C`; use `sorted-lines` comparison wherever POSIX leaves `for (key in
-  array)` order unspecified; include the awk version string in failure
-  messages; inspect the CI log of the draft pull request.
+  `LC_ALL=C`; use `sorted-lines` comparison wherever POSIX leaves
+  `for (key in array)` order unspecified; include the awk version string in
+  failure messages; inspect the CI log of the draft pull request.
 - Risk: new development tools disagree with the strict lint stack (Ruff
   preview rules, Interrogate 100%, Pylint, Skylos, Vulture, nose duplication,
   `ty`). pytest-bdd step functions and the many small `alternative.py` scripts
   are the likely friction. Severity: medium. Likelihood: medium. Mitigation:
   milestone EP-M0 proves the toolchain on one trivial scenario before any
-  corpus code exists; alternatives are written as idiomatic, documented
-  scripts with distinct logic; any narrow per-file ignore cites this plan.
+  corpus code exists; alternatives are written as idiomatic, documented scripts
+  with distinct logic; any narrow per-file ignore cites this plan.
 - Risk: pytest-bdd 9.0.0 or syrupy 6.1.1 may not yet support pytest 9.1.1.
   Severity: medium. Likelihood: low. Mitigation: EP-M0 runs one scenario and
   one snapshot before further work; if incompatible, pin the newest compatible
@@ -171,19 +172,19 @@ expected `1 3` and observed `1 2`. Deleting the Q5 row from
 ## Surprises & discoveries
 
 - Observation: Firecrawl research failed with "Insufficient credits".
-  Evidence: two `firecrawl_scrape` calls on 2026-10-15. Impact: prior-art
-  pages were retrieved with WebFetch instead; the cited sources are unchanged.
+  Evidence: two `firecrawl_scrape` calls on 2026-10-15. Impact: prior-art pages
+  were retrieved with WebFetch instead; the cited sources are unchanged.
 - Observation: Python's `int(s, 10)` accepts Arabic-Indic digits, so the
-  design's `int` adapter accepts `uid=٤٢` while any awk alternative rejects
-  it. Evidence: scratch prototype printed `1 0` (Python) and `0 1` (awk) for
+  design's `int` adapter accepts `uid=٤٢` while any awk alternative rejects it.
+  Evidence: scratch prototype printed `1 0` (Python) and `0 1` (awk) for
   `user=ravi uid=٤٢`. Impact: this is the corpus's first declared divergence
   and direct evidence for Q6 (catalogue breadth).
 - Observation: a Python script iterating a text-mode file decodes in chunks,
   so an invalid byte on line 2 raises before line 1 is printed. Evidence:
-  CPython `io.TextIOWrapper` behaviour; the scratch prototype that decodes
-  each binary line separately printed line 1 and then failed with status 1.
-  Impact: Python alternatives must read bytes and decode per record to model
-  the design's "output already emitted is preserved" contract
+  CPython `io.TextIOWrapper` behaviour; the scratch prototype that decodes each
+  binary line separately printed line 1 and then failed with status 1. Impact:
+  Python alternatives must read bytes and decode per record to model the
+  design's "output already emitted is preserved" contract
   (`docs/pokie-design.md` §9).
 - Observation: `ty` 0.0.56 resolves `from job_corpus import ...` in
   `tests/test_*.py` when `tests/job_corpus/` is a package. Evidence: scratch
@@ -195,8 +196,8 @@ expected `1 3` and observed `1 2`. Deleting the Q5 row from
 - Decision: represent each job as a directory under `tests/job_corpus/jobs/`
   containing `job.toml`, `program.pokie`, `alternative.py`, and usually
   `alternative.awk`. Rationale: TOML is parsed by the standard library's
-  `tomllib` (no new dependency); separate program files keep pokie, Python,
-  and awk text readable and let Ruff, `ty`, and Interrogate check the Python
+  `tomllib` (no new dependency); separate program files keep pokie, Python, and
+  awk text readable and let Ruff, `ty`, and Interrogate check the Python
   alternatives as real code. `docs/repository-layout.md` already reserves
   `tests/` for language fixtures. Date/Author: 2026-10-15, planning agent.
 - Decision: the Python alternative is the executable oracle for expected
@@ -245,16 +246,17 @@ documents:
   states "Owners are unassigned unless stated. Roadmap task 1.1.1 assigns
   decision owners".
 - `docs/pokie-design.md` is the proposed technical design. §1 sets scope, §2
-  records prior art (PAWK, pyawk) and the compiler choice, §3–§5 define
-  syntax, records, lifecycle, captures, and cases, §9 the failure model, and
-  §10 the verification strategy.
+  records prior art (PAWK, pyawk) and the compiler choice, §3–§5 define syntax,
+  records, lifecycle, captures, and cases, §9 the failure model, and §10 the
+  verification strategy.
 - `docs/design-contracts.md` is canonical where it disagrees with the design.
-  §1 contains the only worked example (the user-record program printing
-  `1 2`), §3 the adapter catalogue (`digits`, `hexstr`, `int`, `float`), and
-  §4 the command-line interface (CLI) contract and exit statuses.
+  §1 contains the only worked example (the user-record program printing `1 2`),
+  §3 the adapter catalogue (`digits`, `hexstr`, `int`, `float`), and §4 the
+  command-line interface (CLI) contract and exit statuses.
 - `docs/context.md` defines vocabulary (record, field, capture, rule, case,
-  guard, adapter, binding) and the evidence statuses `Established`, `Agreed
-  basis`, `Assumption`, `Proposed contract`, `Open question`, and `Deferred`.
+  guard, adapter, binding) and the evidence statuses `Established`,
+  `Agreed basis`, `Assumption`, `Proposed contract`, `Open question`, and
+  `Deferred`.
 - ADRs 001–003 (`docs/adr-00N-*.md`) are all `Proposed`.
 - `docs/roadmap.md` lists tasks as `- [ ] N.N.N.` checkboxes.
 
@@ -278,11 +280,11 @@ Terms used in this plan:
   adapters read TOML, parse Markdown, and run subprocesses.
 
 Test conventions observed in `tests/`: flat `test_*.py` modules with a module
-docstring, a docstring and `-> None` on every test, assertion messages held in
-a `why` variable, no shared `conftest.py` yet. Ruff requires `import typing as
-typ`, `import collections.abc as cabc`, `import dataclasses`, and `import
-enum` styles rather than `from` imports for those modules. Tests run under
-`pytest -n auto` (xdist) with a 30-second per-test timeout.
+docstring, a docstring and `-> None` on every test, assertion messages held in a
+`why` variable, no shared `conftest.py` yet. Ruff requires
+`import typing as typ`, `import collections.abc as cabc`, `import dataclasses`,
+and `import enum` styles rather than `from` imports for those modules. Tests
+run under `pytest -n auto` (xdist) with a 30-second per-test timeout.
 
 ## Conformance basis
 
@@ -336,8 +338,8 @@ Axioms (trusted, not verified here):
   and `bytes.decode("utf-8")` behave as documented. The design's adapters are
   defined by these functions (DC-3), so the Python alternative inherits the
   intended semantics by construction.
-- AXIOM-2: `tomllib` conforms to TOML 1.0, including exact preservation of escape
-  sequences in basic strings.
+- AXIOM-2: `tomllib` conforms to TOML 1.0, including exact preservation of
+  escape sequences in basic strings.
 - AXIOM-3: the `awk` on `PATH` implements the POSIX awk features used by the
   alternatives (`match`, `substr`, `split`, `sub`, numeric strings, `exit`
   running `END`). Local evidence: GNU Awk 5.3.0.
@@ -355,7 +357,8 @@ Obligations:
     a named example with distinct meaning.
   - Domain: every `(job, case)` pair in `tests/job_corpus/jobs/` (expected 15
     pairs after EP-M3).
-  - Artefact: `tests/test_job_corpus_alternatives.py::test_python_alternative_reproduces_expected`.
+  - Artefact:
+    `tests/test_job_corpus_alternatives.py::test_python_alternative_reproduces_expected`.
   - Evidence: `make test`; red first by writing each `job.toml` before its
     `alternative.py` exists, which fails with "alternative script not found".
   - Non-vacuity: a collection-time assertion requires at least 15 parameters
@@ -373,7 +376,8 @@ Obligations:
   - Rationale: the second clause catches stale divergence declarations, which
     would otherwise hide a fixed or mistaken expectation.
   - Domain: every `(job, case)` pair with an awk alternative.
-  - Artefact: `tests/test_job_corpus_alternatives.py::test_awk_alternative_agrees_or_declares_divergence`.
+  - Artefact:
+    `tests/test_job_corpus_alternatives.py::test_awk_alternative_agrees_or_declares_divergence`.
   - Evidence: `make test`.
   - Non-vacuity: at least two declared divergences exist after EP-M3
     (`validate-user-records/unicode-digits`,
@@ -392,7 +396,8 @@ Obligations:
     computation over an open-ended input space; a property states it exactly.
   - Domain: Hypothesis-generated tuples of minimal valid jobs with arbitrary
     categories and tag subsets, including the empty tuple.
-  - Artefacts: `tests/test_job_corpus_properties.py::test_coverage_gaps_are_exact_complement`
+  - Artefacts:
+    `tests/test_job_corpus_properties.py::test_coverage_gaps_are_exact_complement`
     and `tests/test_job_corpus_policy.py::test_repository_corpus_covers_required_categories`.
   - Evidence: the property asserts that reported missing categories equal
     `REQUIRED_CATEGORIES - present` and missing tags equal
@@ -412,7 +417,8 @@ Obligations:
   - Domain: generated multisets of register rows drawn from Q1–Q9 with
     possibly blank or placeholder owners, and generated sets of known roadmap
     task identifiers.
-  - Artefacts: `tests/test_job_corpus_properties.py::test_register_gaps_report_missing_duplicate_and_unknown`
+  - Artefacts:
+    `tests/test_job_corpus_properties.py::test_register_gaps_report_missing_duplicate_and_unknown`
     and `tests/test_job_corpus_register.py::test_repository_register_is_complete_and_consistent`.
   - Evidence: the property asserts missing = Q1–Q8 minus present, duplicates =
     identifiers occurring more than once, unknown = present minus Q1–Q8, and
@@ -430,8 +436,8 @@ Obligations:
   - Non-vacuity: unit cases for a job missing from the register, a register
     entry naming a non-existent job, and an exact match.
 - Obligation LEM-LOAD-1: the TOML adapter maps a job file to domain values
-  without altering input bytes, and rejects malformed files with the file
-  path and TOML key.
+  without altering input bytes, and rejects malformed files with the file path
+  and TOML key.
   - Method: parameterized adapter tests using `tmp_path`.
   - Domain: inline `text` inputs containing `\n` with and without a final
     terminator, `path` inputs containing invalid UTF-8, an empty `text`,
@@ -450,7 +456,8 @@ Obligations:
   - Domain: lists of 0–20 records drawn from printable text without line
     terminators, mixing lines containing and lacking the word `ERROR`;
     `max_examples=25`, `deadline=None`.
-  - Artefact: `tests/test_job_corpus_alternatives.py::test_filter_alternative_preserves_record_order`.
+  - Artefact:
+    `tests/test_job_corpus_alternatives.py::test_filter_alternative_preserves_record_order`.
   - Non-vacuity: the strategy is built so roughly half of the records contain
     `ERROR`, `hypothesis.event` records whether output was empty, and a pinned
     `@example` with three matching records out of order relative to a sorted
@@ -471,22 +478,21 @@ Obligations:
 
 No obligation requires symbolic execution or a proof: the domain logic is set
 arithmetic and record comparison, which properties and enumerated examples
-cover completely at proportionate cost. The residual gap is that the corpus
-is synthetic; no test can show that it represents real users. That gap is
-owned by Q1 in the register.
+cover completely at proportionate cost. The residual gap is that the corpus is
+synthetic; no test can show that it represents real users. That gap is owned by
+Q1 in the register.
 
 ## Corpus specification
 
-This is the content EP-M3 creates. Every job uses `evidence_status =
-"assumption"`. Expected outputs below are exact byte strings written with
-Python escape notation. Outcomes marked "verified"
-were reproduced by the scratch prototype on 2026-10-15 with CPython 3.14 and
-GNU Awk 5.3.0.
+This is the content EP-M3 creates. Every job uses
+`evidence_status = "assumption"`. Expected outputs below are exact byte strings
+written with Python escape notation. Outcomes marked "verified" were reproduced
+by the scratch prototype on 2026-10-15 with CPython 3.14 and GNU Awk 5.3.0.
 
 ### Filtering jobs
 
-`filter-error-lines` (goals G1, G5; decisions Q1, Q5; `order_preserving =
-true`). Program:
+`filter-error-lines` (goals G1, G5; decisions Q1, Q5;
+`order_preserving = true`). Program:
 
 ```plaintext
 when /\bERROR\b/:
@@ -510,8 +516,8 @@ file; expected stdout empty, status 0. Case `invalid-utf8`, tags
 `ok ERROR one\n`, `\xff\xfe ERROR\n`, `later ERROR\n`: expected stdout
 `ok ERROR one\n`, status 1, diagnostic `input` (verified). The awk alternative
 declares a divergence on `invalid-utf8` because awk does not validate
-encodings. Notes record the open question about lone carriage returns for
-task 1.1.2.
+encodings. Notes record the open question about lone carriage returns for task
+1.1.2.
 
 `filter-server-errors` (G1; Q1, Q3). Program:
 
@@ -532,9 +538,9 @@ GET /short
 GET /odd abc 1
 ```
 
-Expected stdout `/upload\n/health\n/spaced\n`, status 0 (verified with awk).
-The `isascii()` test keeps the job's meaning identical in Python and awk;
-whether users expect it is recorded in `notes` as Q3 evidence.
+Expected stdout `/upload\n/health\n/spaced\n`, status 0 (verified with awk). The
+`isascii()` test keeps the job's meaning identical in Python and awk; whether
+users expect it is recorded in `notes` as Q3 evidence.
 
 `filter-missing-email` (G1; Q3). Program:
 
@@ -583,14 +589,14 @@ status 0 (verified with awk). This is direct evidence for ADR-002's rule that
 ### Capture-validation jobs
 
 `validate-user-records` (G2, G3; Q5, Q6). Program copied verbatim from
-`docs/design-contracts.md` §1. Case `design-example`, tags
-`malformed-record`: records `user=ada uid=42`, `user=lin uid=no`,
-`user=sam uid=-1`; expected stdout `1 2\n`, status 0 (verified with Python
-and awk). Case `unicode-digits`, tags `unicode`: record `user=ravi uid=٤٢`;
-expected stdout `1 0\n` (verified with Python). The awk alternative prints
-`0 1` and declares a divergence: POSIX awk has no Unicode decimal conversion,
-whereas the proposed `int` adapter follows `int(s, 10)` (DC-3). Notes record
-that this behaviour bears on Q6 (should `int` accept non-ASCII digits?).
+`docs/design-contracts.md` §1. Case `design-example`, tags `malformed-record`:
+records `user=ada uid=42`, `user=lin uid=no`, `user=sam uid=-1`; expected stdout
+`1 2\n`, status 0 (verified with Python and awk). Case `unicode-digits`, tags
+`unicode`: record `user=ravi uid=٤٢`; expected stdout `1 0\n` (verified with
+Python). The awk alternative prints `0 1` and declares a divergence: POSIX awk
+has no Unicode decimal conversion, whereas the proposed `int` adapter follows
+`int(s, 10)` (DC-3). Notes record that this behaviour bears on Q6 (should `int`
+accept non-ASCII digits?).
 
 `validate-request-ids` (G2, G3; Q4, Q6). Program:
 
@@ -620,10 +626,9 @@ no request here
 
 Expected stdout `00ff 12\n1a2b 007\nmalformed 2\n`, status 0 (verified with
 awk). Leading zeros survive because `hexstr` and `digits` preserve their
-subject. The last record does not match the regex, so the rule does nothing
-and it is not counted. Notes record that a stricter identifier rule (for
-example, even-length identifiers) would need a custom adapter, which is Q4
-evidence.
+subject. The last record does not match the regex, so the rule does nothing and
+it is not counted. Notes record that a stricter identifier rule (for example,
+even-length identifiers) would need a custom adapter, which is Q4 evidence.
 
 `validate-optional-unit` (G2, G3; Q5, Q6). Program:
 
@@ -663,8 +668,8 @@ end:
 Case `access-log`: statuses `200`, `503`, `200`, `404`, `200` on five
 well-formed records. Expected stdout `200 3\n404 1\n503 1\n`. Case
 `empty-input`, tags `empty-input`: expected empty stdout, status 0. The awk
-alternative uses `comparison = "sorted-lines"` because POSIX leaves `for (key
-in array)` order unspecified; tag `unordered-aggregate`.
+alternative uses `comparison = "sorted-lines"` because POSIX leaves
+`for (key in array)` order unspecified; tag `unordered-aggregate`.
 
 `aggregate-endpoint-latency` (G1, G3, G4; Q3, Q6, Q7). Program:
 
@@ -696,18 +701,17 @@ Case `two-files`, tags `multiple-files`, `unterminated-final-line`: input
 awk). Case `float-spellings`: `c.log` contains `/d 1e3` and `/d inf`. Expected
 stdout `/d 1000.00\nrejected 1 of 2\n` (verified with Python). The awk
 alternative prints `rejected 2 of 2` and declares a divergence: its decimal
-regular expression rejects exponent notation, whereas `float` follows
-Python's `float()` (DC-3). The awk alternative uses `sorted-lines`
-comparison.
+regular expression rejects exponent notation, whereas `float` follows Python's
+`float()` (DC-3). The awk alternative uses `sorted-lines` comparison.
 
 ### Status-quo alternative
 
-Every job also carries a non-executable alternative with `kind =
-"status-quo"` and a one-paragraph description of what a user does today (for
-example, "a twenty-line Python script combining `re.search`, `try`/`except
-ValueError`, and a `Counter`"). The Python alternative's line count is
-recorded automatically in the generated job catalogue so roadmap task 5.2.2
-can compare script sizes without re-deriving them.
+Every job also carries a non-executable alternative with `kind = "status-quo"`
+and a one-paragraph description of what a user does today (for example, "a
+twenty-line Python script combining `re.search`, `try`/`except ValueError`, and
+a `Counter`"). The Python alternative's line count is recorded automatically in
+the generated job catalogue so roadmap task 5.2.2 can compare script sizes
+without re-deriving them.
 
 ## Plan of work
 
@@ -729,32 +733,30 @@ before any real code exists. If a gate objects, fix it here.
 Write red tests, then the pure domain modules under `tests/job_corpus/`:
 
 - `model.py`: enumerations `JobCategory`, `QuestionId` (Q1–Q8),
-  `CaseTag`, `AlternativeKind` (`python`, `awk`, `status-quo`),
-  `Comparison` (`exact`, `sorted-lines`), and `Diagnostic` (`none`, `input`,
-  `runtime`); frozen, slotted dataclasses `InputFile`, `ExpectedOutcome`,
-  `ObservedOutcome`, `JobCase`, `Alternative`, `CorpusJob`, and
-  `RegisterEntry`.
+  `CaseTag`, `AlternativeKind` (`python`, `awk`, `status-quo`), `Comparison`
+  (`exact`, `sorted-lines`), and `Diagnostic` (`none`, `input`, `runtime`);
+  frozen, slotted dataclasses `InputFile`, `ExpectedOutcome`, `ObservedOutcome`,
+  `JobCase`, `Alternative`, `CorpusJob`, and `RegisterEntry`.
 - `policy.py`: `find_coverage_gaps`, `find_register_gaps`,
-  `find_evidence_mismatches`, and `find_identity_errors` (duplicate job or
-  case identifiers), each returning a tuple of `Finding` values and doing no
-  I/O.
+  `find_evidence_mismatches`, and `find_identity_errors` (duplicate job or case
+  identifiers), each returning a tuple of `Finding` values and doing no I/O.
 - `comparison.py`: `compare_outcome` (expected versus observed under a
   `Comparison`) and `evaluate_agreement` (classifies a case as `agrees`,
   `declared-divergence`, `undeclared-divergence`, or `stale-divergence`).
 
 Red: create `tests/test_job_corpus_policy.py` and
-`tests/test_job_corpus_properties.py` with the tests named in `Verification
-plan`, importing names that do not exist yet; run them and observe
+`tests/test_job_corpus_properties.py` with the tests named in
+`Verification plan`, importing names that do not exist yet; run them and observe
 `ImportError`. Green: implement the three modules. Refactor: keep each
 function within the complexity limits.
 
 ### Stage C: ports, adapters, and the application service (EP-M2)
 
-- `ports.py`: `typing.Protocol` classes `JobSource` (`load_jobs() ->
-  tuple[CorpusJob, ...]`), `RegisterSource` (`load_entries() ->
-  tuple[RegisterEntry, ...]`), `RoadmapSource` (`task_ids() ->
-  frozenset[str]`), and `AlternativeRunner` (`run(alternative, case) ->
-  ObservedOutcome`).
+- `ports.py`: `typing.Protocol` classes `JobSource`
+  (`load_jobs() -> tuple[CorpusJob, …]`), `RegisterSource`
+  (`load_entries() -> tuple[RegisterEntry, …]`), `RoadmapSource`
+  (`task_ids() -> frozenset[str]`), and `AlternativeRunner`
+  (`run(alternative, case) -> ObservedOutcome`).
 - `adapters/toml_jobs.py`: `TomlJobSource(root: Path)` reading every
   `jobs/*/job.toml` with `tomllib`, resolving `program`, alternative `path`,
   and input `path` relative to the job directory, and raising
@@ -762,17 +764,16 @@ function within the complexity limits.
 - `adapters/markdown_docs.py`: `MarkdownRegisterSource(path: Path)` parsing
   the table between `<!-- decision-register:start -->` and
   `<!-- decision-register:end -->`, and `MarkdownRoadmapSource(path: Path)`
-  collecting identifiers from lines matching `- [ ] N.N.N.` or `- [x]
-  N.N.N.`.
+  collecting identifiers from lines matching `- [ ] N.N.N.` or `- [x] N.N.N.`.
 - `adapters/process_runner.py`: `ProcessRunner(awk: str | None)` writing
   case inputs to a `tempfile.TemporaryDirectory`, then running
-  `[sys.executable, "-I", script, *files]` or `[awk, "-f", script, *files]`
-  with `env={"LC_ALL": "C", "PATH": os.environ["PATH"]}` for awk,
-  `timeout=10`, and `capture_output=True`. When a case's `input_mode` is
-  `stdin`, the single input is passed on standard input instead.
-- `service.py`: `audit_corpus(jobs: JobSource, register: RegisterSource,
-  roadmap: RoadmapSource) -> AuditReport` and `verify_alternative(job,
-  alternative, runner) -> tuple[CaseResult, ...]`.
+  `[sys.executable, "-I", script, *files]` or `[awk, "-f", script, *files]` with
+  `env={"LC_ALL": "C", "PATH": os.environ["PATH"]}` for awk, `timeout=10`, and
+  `capture_output=True`. When a case's `input_mode` is `stdin`, the single
+  input is passed on standard input instead.
+- `service.py`:
+  `audit_corpus(jobs: JobSource, register: RegisterSource, roadmap: RoadmapSource) -> AuditReport`
+  and `verify_alternative(job, alternative, runner) -> tuple[CaseResult, …]`.
 - `report.py`: `render_report(report: AuditReport) -> str`.
 
 Red: `tests/test_job_corpus_toml.py`, `tests/test_job_corpus_register.py`
@@ -782,28 +783,27 @@ Add the unhappy behavioural scenarios to the feature file and their steps.
 
 ### Stage D: corpus content (EP-M3)
 
-For each job in `Corpus specification`, in category order: create
-`job.toml` and `program.pokie` first and run the focused end-to-end test,
-which fails because `alternative.py` is missing (red); then write
-`alternative.py` (green) and `alternative.awk`, observing that awk agrees or
-diverges exactly where declared. Commit after each category. Add the
-happy-path behavioural scenarios. Demonstrate the order-preservation seeded
-fault once and record its output in `Artefacts and notes`.
+For each job in `Corpus specification`, in category order: create `job.toml` and
+`program.pokie` first and run the focused end-to-end test, which fails because
+`alternative.py` is missing (red); then write `alternative.py` (green) and
+`alternative.awk`, observing that awk agrees or diverges exactly where
+declared. Commit after each category. Add the happy-path behavioural scenarios.
+Demonstrate the order-preservation seeded fault once and record its output in
+`Artefacts and notes`.
 
 ### Stage E: decision register (EP-M4)
 
-Write `docs/decision-register.md` (contents in `Decision register
-specification`). Red: `test_repository_register_is_complete_and_consistent`
-is written before the document exists and fails with "register markers not
-found". Green: write the document. Add the register scenarios to the feature
-file.
+Write `docs/decision-register.md` (contents in
+`Decision register specification`). Red:
+`test_repository_register_is_complete_and_consistent` is written before the
+document exists and fails with "register markers not found". Green: write the
+document. Add the register scenarios to the feature file.
 
 ### Stage F: documentation and completion (EP-M5)
 
-Write ADR 004 and `docs/job-corpus.md`; update the design, terms of
-reference, contents, repository layout, developers' guide, users' guide, and
-README as described in `Documentation changes`; mark roadmap 1.1.1 done; run
-every gate.
+Write ADR 004 and `docs/job-corpus.md`; update the design, terms of reference,
+contents, repository layout, developers' guide, users' guide, and README as
+described in `Documentation changes`; mark roadmap 1.1.1 done; run every gate.
 
 ## Decision register specification
 
@@ -826,12 +826,12 @@ Q7 | @leynos (project owner) | 5.2.1 | Open question | 5.2.2 | aggregate-status-
 Q8 | @leynos (project owner) | 5.2.2 | Open question | 5.2.2 | none
 ```
 
-Below the table, one short subsection per question states why the evidence
-task was chosen, which corpus cases bear on it, and what would close it. Q1's
+Below the table, one short subsection per question states why the evidence task
+was chosen, which corpus cases bear on it, and what would close it. Q1's
 subsection states that the corpus is a candidate, not the "agreed corpus" its
 resolution criterion requires, until the project owner agrees it. Q8's
-subsection states that the project owner holds every decision until Q8 names
-a sponsor or release approver.
+subsection states that the project owner holds every decision until Q8 names a
+sponsor or release approver.
 
 ## Behavioural specification
 
@@ -982,8 +982,8 @@ Step definitions live in `tests/test_job_corpus_scenarios.py`, which calls
 - `docs/developers-guide.md`: new section "Job corpus and decision register"
   covering layout, the red-first procedure for adding a job, alternative
   conventions (decode per record, `-I`, POSIX awk, `LC_ALL=C`, deterministic
-  ordering), declaring divergences, maintaining the register, and the
-  hexagonal module boundaries with their reuse policy.
+  ordering), declaring divergences, maintaining the register, and the hexagonal
+  module boundaries with their reuse policy.
 - `docs/users-guide.md`: new short section "Representative jobs" explaining
   that the corpus shows what pokie is intended to do, that its programs are
   proposed and not executable, and where to read expected outcomes.
@@ -1062,8 +1062,7 @@ Quality criteria:
 
 - Tests: `make test` passes.
 - Verification: INV-ORACLE-1, INV-ORACLE-2, INV-COV-1, INV-REG-1,
-  INV-REG-2, LEM-LOAD-1, INV-ORDER-1, and INV-REPORT-1 discharged as
-  described.
+  INV-REG-2, LEM-LOAD-1, INV-ORDER-1, and INV-REPORT-1 discharged as described.
 - Lint and type checking: `make check-fmt`, `make typecheck`, and `make lint`
   pass after each milestone.
 - Documentation: `make markdownlint` (including spelling) and `make nixie`
@@ -1179,11 +1178,10 @@ expected = { stdout = "1 2\n", exit_status = 0, diagnostic = "none" }
 
 Signposted skills for the implementer: `execplans` (keep this plan current),
 `hexagonal-architecture` (port and adapter boundaries), `python-router`, then
-`python-data-shapes` (frozen dataclasses), `python-types-and-apis`
-(protocols), `python-testing` (fixtures, parametrization, syrupy),
-`hypothesis` (properties), `python-errors-and-logging`
-(`CorpusFormatError`), `leta` (navigation), `en-gb-oxendict-style`
-(documentation), and `commit-message`.
+`python-data-shapes` (frozen dataclasses), `python-types-and-apis` (protocols),
+`python-testing` (fixtures, parametrization, syrupy), `hypothesis` (properties),
+`python-errors-and-logging` (`CorpusFormatError`), `leta` (navigation),
+`en-gb-oxendict-style` (documentation), and `commit-message`.
 
 Signposted documents: `docs/terms-of-reference.md` §§4–9,
 `docs/pokie-design.md` §§1–5, 9–11, `docs/design-contracts.md` §§1, 3–4,
