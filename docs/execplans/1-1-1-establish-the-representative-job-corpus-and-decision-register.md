@@ -161,8 +161,14 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   near-duplicate job scripts. Severity: medium. Likelihood: high. Mitigation:
   EP-M0 proves the toolchain on realistic code (the full domain model, one
   complete job with reference and awk scripts, and one scenario); Vulture gains
-  `ignore_decorators` for pytest-bdd step decorators; every model field is read
-  by policy or the report.
+  `ignore_decorators` for pytest-bdd step decorators; `StrEnum` members reached
+  from TOML text and fields whose consumers arrive in later milestones are
+  declared in `tests/job_corpus/vulture_whitelist.py`, which
+  `tests/test_job_corpus_dead_code.py` checks against Vulture in both
+  directions so it cannot rot into a blanket exemption. (EP-M0 falsified the
+  original claim here — "every model field is read by policy or the report" —
+  because a member resolved by `enum_type(text)` is invisible to Vulture
+  however much consuming code exists; see `Surprises & discoveries`.)
 - Risk: Hypothesis deadlines flake under slipcover instrumentation on CI.
   Severity: low. Likelihood: medium. Mitigation: `tests/conftest.py` registers
   a default profile with `deadline=None` and a `ci` profile adding
@@ -203,7 +209,15 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   image, pytest-bdd, and syrupy after credits were restored.
 - [ ] Plan approved by the project owner, including owner assignments and
   interim defaults.
-- [ ] EP-M0: toolchain proof on realistic code.
+- [x] (2026-10-15) EP-M0: toolchain proof on realistic code. The domain types,
+  the first job (`validate-user-records`) with its oracle and awk alternative,
+  the runner, the parameterized tests, and the first scenario all exist and
+  pass. Every gate passes: `check-fmt`, `typecheck`, `lint` (all ten sub-gates,
+  including the five pylint had previously aborted), `test` (44 passed, no
+  skips), `markdownlint`, `nixie`, `audit`, `spelling`, `validate`, and the CI
+  coverage command under CPython 3.14.7. Non-vacuity is enforced by
+  `test_corpus_is_non_vacuous`, and the Vulture whitelist is guarded in both
+  directions by `tests/test_job_corpus_dead_code.py`.
 - [ ] EP-M1: domain policy, comparison, and audit with unit and property
   tests.
 - [ ] EP-M2: adapters, runner, report snapshots, and unhappy scenarios.
@@ -266,6 +280,114 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   `when`. syrupy warns that `--snapshot-update` under xdist can corrupt
   snapshot files. Vulture at 60% confidence reports every pytest-bdd step
   function as unused. Evidence: scratch experiment by the testing reviewer.
+- Observation: `coverage-main.yml` and `audit.yml` declare
+  `python-version: '3.13'` in their `actions/setup-python` step, while
+  `pyproject.toml` requires `>=3.14` and `ci.yml` and `act-validation.yml`
+  declare `'3.14'`. The coverage workflow's Python is only the default on
+  `PATH`; `uv` reads `requires-python` and provisions its own 3.14 interpreter,
+  so the test run is 3.14 in every workflow and the corpus's interpreter-
+  dependent expectations (the `int` adapter, per-record decoding) are exercised
+  on one version. Impact: none for this task, which is why it is recorded as an
+  observation and not raised as a blocker. `coverage-main.yml` still runs the
+  same `uv run python -m slipcover` command this plan verifies locally.
+- **Falsified: the "Ruff 3.14 formatter and Pylint on PyPy 3.12 agree"
+  toolchain hypothesis.** Stage A asks for one
+  `except (ValueError, TypeError):` handler "to prove the Ruff 3.14 formatter
+  and Pylint on PyPy 3.12 agree on its syntax". They do not agree, and the
+  disagreement is an exact inversion. Evidence: with the parentheses written,
+  `ruff format --check` reports "File would be reformatted" and its proposed
+  edit is to *delete* them, because `target-version = "py314"` enables the PEP
+  758 rewrite; `pylint` pinned to `pypy@3.12` (`Makefile:37`) then reports
+  `E0001: Parsing failed: 'multiple exception types must be parenthesized'`.
+  With the parentheses omitted, the reverse holds: pylint rates 10.00/10 and
+  Ruff rewrites them back. The two tools cannot both be satisfied by the bare
+  form. `PYTHON_TARGETS` is
+  `git ls-files --cached --others --exclude-standard '*.py' '*.pyi'`
+  (`Makefile:25`), so the oracle is in scope for both gates and cannot be
+  excused by path. Impact and resolution: the parenthesized form is pinned with
+  a trailing `# fmt: skip` and a comment giving both reasons, which is the
+  narrowest escape hatch that satisfies each tool. This is the first such
+  suppression in the repository, so it is recorded here rather than passed over
+  silently. The underlying cause is the pinned pylint interpreter, not the
+  handler: the corpus keeps the parenthesized form because `except` clauses
+  with multiple types are ordinary Python, and the PEP 758 shorthand buys
+  nothing here. A future change that moves pylint off PyPy 3.12 could adopt the
+  shorthand directly and delete the `# fmt: skip`; recorded so that whoever
+  does it knows why the comment exists.
+- Observation: two lint gates the plan does not name are load-bearing. First,
+  `make lint` runs `interrogate --fail-under 100` over every Python target
+  (`Makefile:123`), so every function in the harness, including every private
+  helper and every dunder, needs a docstring; `RUF067` is ignored only for
+  `__init__.py`. Second, the same target runs `DF12_PYLINT`, `AMBRLEAKS`, the
+  shared Skylos dead-code and duplication checks, and `lint-actions` in one
+  recipe, so any earlier sub-gate that aborts leaves the rest unverified rather
+  than passing. Evidence: the first full `make lint` failed at pylint and
+  reported five later sub-gates as never having run. Impact: a lint failure
+  must be recorded as "these sub-gates are unverified", never as a pass, and
+  the gate must be re-run to completion after a fix.
+- Observation: `ruff format` under `target-version = "py314"` rewrites
+  `except (A, B):` to the PEP 758 `except A, B:`, while `DOC502`
+  (`docstring-extraneous-exception`) counts only an exception raised *directly*
+  in a function body, so a helper that raises via another function cannot
+  document `Raises` at the call site. Evidence: both reproduced in isolation.
+  Impact: the loader documents `EvidenceFormatError` once, on `_fail`, and
+  describes the malformed values it reports inside each loader's `Returns`
+  section instead — the same shape `scripts/action_workflow.py` uses for its
+  propagated errors.
+- Observation: `pytest-bdd` resolves each step function's annotations eagerly
+  through `inspect.signature` when it collects the feature file, so a type-only
+  annotation on a step function is evaluated at runtime and its import cannot
+  be deferred into `if typ.TYPE_CHECKING:`. Evidence: deferring the import in
+  `tests/test_job_corpus_scenarios.py` raised
+  `NameError: name 'process_runner' is not defined` from a scenario that had
+  otherwise passed. Quoting the annotation is not available either, because
+  Ruff's `UP` rules flag it as `quoted-annotation`. Impact: the one deferred
+  import in the step module carries a targeted
+  `# ruff: ignore[typing-only-third-party-import]` with the reason inline.
+- Observation: `ty` reports 15 diagnostics against the first `toml_jobs.py`
+  draft, of which 13 stem from two causes: `_fail` lacked a `NoReturn`
+  annotation, so the checker could not see that the `isinstance` guards
+  terminate, and the `_member`/`_members` type parameter was bounded by
+  `model.Failure` while the functions are also called with `QuestionId`,
+  `CaseTag`, `JobCategory`, `Comparison`, `ObservationKind`, and
+  `EvidenceStatus`. Bounding it by `enum.StrEnum`, the shared supertype,
+  removes the nine-member union that had been written to fix it. Impact:
+  recorded because a reviewer reading only the final code cannot see that the
+  narrow bound was ever wrong, and the same mistake is easy to repeat.
+- **Falsified: the mitigation this plan's own Risk entry relies on.** The Risk
+  section says "every model field is read by policy or the report, so Vulture
+  has nothing to flag" (line 1553). That is untrue in two different ways, and
+  the `dead-code` gate reports 69 findings once Ruff, Interrogate, Pylint, and
+  DF12_PYLINT pass. (a) The 47 `StrEnum` members are a *wire format*: a member
+  is reached when a `job.toml` string names it, through `toml_values._member`,
+  which calls `enum_type(text)`. Constructing a member from text is a runtime
+  lookup, so no consumer that EP-M1 through EP-M5 adds can ever make Vulture
+  see it. (b) The 19 dataclass fields and the `RegisterEntry` class are
+  genuinely premature: `policy.py` and `report.py` read fields by attribute,
+  which does clear Vulture, so those findings would have resolved on their own.
+  Evidence: `Failures.RED`-style probes showed that a literal `Colour.RED`
+  expression clears a member, while construction, keyword construction, and
+  iteration all leave it reported; a `Thing(title=..., reason=...)`
+  construction leaves every field reported, while an attribute read clears
+  them. Impact and resolution: the permanent cases cannot be fixed by waiting,
+  so the plan needs a mechanism the model cannot provide. Two candidate
+  mechanisms were tested and rejected: dotted `ignore_names` entries
+  (`"Colour.RED"`) match nothing, and bare names (`"RED"`) would exempt every
+  same-named symbol repository-wide. The resolution is Vulture's own documented
+  mechanism, a scanned whitelist module at
+  `tests/job_corpus/vulture_whitelist.py`, written as tuple assignments of real
+  attribute access so that `ty` fails the build if a whitelisted name is
+  renamed or deleted. A stale whitelist would silently exempt dead code, so
+  `tests/test_job_corpus_dead_code.py` closes the loop: it re-runs Vulture with
+  the whitelist excluded and asserts the two name sets are *equal*, failing on
+  an entry Vulture no longer reports as well as on a reported name the
+  whitelist omits. That makes the list self-clearing as later milestones land
+  their consumers. Both directions were falsification-tested: adding
+  `model.Failure.NONE` and deleting `model.Failure.GUARD` each fail the guard
+  with the offending name printed. A third hazard was found while writing the
+  guard: Vulture matches by *name*, not by scope, so the guard's own local
+  variable `owner` masked `RegisterEntry.owner` and made the entry look stale;
+  the locals are now named `declaring` and `classes` to keep the scan honest.
 
 ## Decision log
 
@@ -331,6 +453,17 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   or unterminated lines without sidecar files. Revisit at 2.2.3, when runnable
   guides become a requirement. Date/Author: 2026-10-15, planning agent after
   panel review.
+- Decision: `dead-code` findings that the corpus cannot resolve are handled by
+  a scanned whitelist module, `tests/job_corpus/vulture_whitelist.py`, rather
+  than by Vulture `ignore_names` entries or inline `# noqa: vulture` comments.
+  Rationale: dotted `ignore_names` entries (`"Colour.RED"`) match nothing, and
+  bare ones (`"RED"`) would exempt every same-named symbol repository-wide,
+  which the `Constraints` section's stance against weakening gates rules out.
+  The whitelist is ordinary source that `ty` type-checks, so a renamed or
+  deleted model member breaks the build rather than silently rotting the
+  exemption, and `tests/test_job_corpus_dead_code.py` asserts the whitelist and
+  Vulture's own findings are equal sets so an entry is deleted the moment its
+  consumer lands. Date/Author: 2026-10-15, implementation agent at EP-M0.
 
 ## Outcomes & retrospective
 
@@ -586,6 +719,21 @@ Obligations:
   - Non-vacuity: paths are corpus-relative inside the domain, so nothing
     needs redaction; environment-specific data such as the awk version is
     kept out of the report and appears only in assertion messages.
+
+- Obligation INV-DEADCODE-1: the Vulture whitelist exempts only names Vulture
+  still reports, so it can never become a blanket exemption.
+  - Method: `tests/test_job_corpus_dead_code.py` re-runs Vulture with the
+    whitelist excluded by path, resolves each finding to a dotted
+    `Class.member` name through `ast`, and asserts set equality with the
+    whitelist's declarations. Both directions were falsification-tested: a
+    stale entry and a missing entry each fail with the offending name.
+  - Rationale: the whitelist exists because `StrEnum` members resolved from
+    TOML text are invisible to Vulture however much consuming code exists, and
+    an unguarded exemption list decays into "ignore all dead code".
+  - Artefact: `tests/test_job_corpus_dead_code.py` and
+    `tests/job_corpus/vulture_whitelist.py`.
+  - Non-vacuity: the guard fails if Vulture cannot run, so an environment
+    without `vulture` reports an error rather than passing.
 
 No obligation needs symbolic execution or a proof: the domain logic is set
 arithmetic, ordering, and byte comparison, which enumerated examples and
@@ -1275,13 +1423,27 @@ logging with `tee`:
 ```bash
 BRANCH=$(git branch --show-current)
 make check-fmt 2>&1 | tee /tmp/check-fmt-pokie-$BRANCH.out
+make fmt 2>&1 | tee /tmp/fmt-pokie-$BRANCH.out
 make typecheck 2>&1 | tee /tmp/typecheck-pokie-$BRANCH.out
 make lint 2>&1 | tee /tmp/lint-pokie-$BRANCH.out
 make test 2>&1 | tee /tmp/test-pokie-$BRANCH.out
 make markdownlint 2>&1 | tee /tmp/markdownlint-pokie-$BRANCH.out
+make spelling 2>&1 | tee /tmp/spelling-pokie-$BRANCH.out
 make nixie 2>&1 | tee /tmp/nixie-pokie-$BRANCH.out
-uv run python -m slipcover --branch -m pytest -n auto 2>&1 | tee /tmp/coverage-pokie-$BRANCH.out
+make audit 2>&1 | tee /tmp/audit-pokie-$BRANCH.out
+make validate 2>&1 | tee /tmp/validate-pokie-$BRANCH.out
+uv run --with 'slipcover' python -m slipcover --branch -m pytest -n auto \
+  2>&1 | tee /tmp/coverage-pokie-$BRANCH.out
 ```
+
+`make fmt` is listed because the ExecPlan itself is a Markdown target: editing
+it can leave a table that `mdtablefix` re-pads, which `make check-fmt` reports
+and only `make fmt` fixes. `make spelling` and `make validate` are separate
+targets (`make markdownlint` does not include them), and `make audit` is the
+`pip-audit` gate named in `AGENTS.md`. The coverage command must be run through
+`uv run --with 'slipcover'`: `uv tool run` installs an isolated environment in
+which `pytest` is not importable, so that form fails before collecting tests
+rather than reporting coverage.
 
 EP-M0 dependency step:
 
@@ -1391,6 +1553,7 @@ tests/job_corpus/comparison.py        compare_outcome, evaluate_agreement
 tests/job_corpus/audit.py             audit_corpus, verify_case
 tests/job_corpus/report.py            render_report
 tests/job_corpus/ports.py             ProgramRunner
+tests/job_corpus/vulture_whitelist.py names Vulture cannot see through TOML text
 tests/job_corpus/adapters/toml_jobs.py       load_jobs, EvidenceFormatError
 tests/job_corpus/adapters/markdown_docs.py   load_register, load_roadmap_task_ids
 tests/job_corpus/adapters/process_runner.py  ProcessRunner
@@ -1471,8 +1634,11 @@ alternatives, cases, observations)`,
 and
 `RegisterEntry(question, owner,
 evidence_tasks, decide_before, gates, corpus_evidence)`.
-`task_ids` is an ordered sequence so deadline ordering can be checked. Every
-field is read by policy or the report, so Vulture has nothing to flag.
+`task_ids` is an ordered sequence so deadline ordering can be checked. Fields
+whose only consumer is a later milestone, and the `StrEnum` members that TOML
+text resolves at runtime, are declared in
+`tests/job_corpus/vulture_whitelist.py` and checked against Vulture by
+`tests/test_job_corpus_dead_code.py`; see `Surprises & discoveries`.
 
 `job.toml` schema (version 1):
 
