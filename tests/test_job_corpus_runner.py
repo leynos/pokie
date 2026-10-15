@@ -1,4 +1,4 @@
-"""Unit tests for the runner's operand and standard-input rules.
+"""Unit tests for the runner's operand, input-name, and stdin rules.
 
 The end-to-end corpus tests in `tests/test_job_corpus_alternatives.py` drive the
 runner through committed jobs, but every committed case happens to obey the
@@ -172,3 +172,46 @@ def test_every_named_operand_reaches_the_program(
     assert outcome.stdout == b"2 0\n", (
         f"operands {operands!r} lost an input: observed {outcome.stdout!r}"
     )
+
+
+def test_an_input_name_that_is_not_a_bare_file_name_is_refused(
+    process_runner_instance: process_runner.ProcessRunner,
+    repository_jobs: tuple[model.CorpusJob, ...],
+) -> None:
+    """An input name must be a bare file name, never a path.
+
+    Two reasons, both about a wrong answer rather than tidiness. The operand
+    is used as the path inside the run directory, and ``pathlib`` discards the
+    left operand when the right is absolute, so an absolute name would have
+    the run write outside its temporary directory — the constraint the plan
+    states. And a name with a separator is not reachable as an operand, since
+    the program is handed the joined path while the case says it named
+    ``a/users.log``, so the two would disagree about which file the case
+    selected.
+    """
+    escaping = "../users.log"
+    inputs = (model.InputFile(name=escaping, content=b"user=ada uid=42\n"),)
+    case = make_case((escaping,), inputs)
+    with pytest.raises(ports.EvidenceFormatError):
+        process_runner_instance.run(reference_of(repository_jobs), case)
+
+
+def test_two_inputs_sharing_a_name_are_refused(
+    process_runner_instance: process_runner.ProcessRunner,
+    repository_jobs: tuple[model.CorpusJob, ...],
+) -> None:
+    """Duplicate input names are a corpus defect, not a silent last-one-wins.
+
+    The name is the key that maps an operand to bytes, so a duplicate makes
+    the mapping ambiguous and the dict comprehension keeps the last. The run
+    would then feed the program bytes the case never selected for that
+    operand, and the reported outcome would describe an input no reader of
+    ``job.toml`` could have predicted from the operands listed.
+    """
+    duplicated = (
+        model.InputFile(name="users.log", content=b"user=ada uid=42\n"),
+        model.InputFile(name="users.log", content=b"user=lin uid=7\n"),
+    )
+    case = make_case(("users.log",), duplicated)
+    with pytest.raises(ports.EvidenceFormatError):
+        process_runner_instance.run(reference_of(repository_jobs), case)
