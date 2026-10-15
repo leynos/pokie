@@ -752,11 +752,12 @@ function within the complexity limits.
 
 ### Stage C: ports, adapters, and the application service (EP-M2)
 
-- `ports.py`: `typing.Protocol` classes `JobSource`
-  (`load_jobs() -> tuple[CorpusJob, …]`), `RegisterSource`
-  (`load_entries() -> tuple[RegisterEntry, …]`), `RoadmapSource`
+- `ports.py`: `typing.Protocol` classes `JobSource` (method `load_jobs()`
+  returning a tuple of `CorpusJob`), `RegisterSource` (method `load_entries()`
+  returning a tuple of `RegisterEntry`), `RoadmapSource`
   (`task_ids() -> frozenset[str]`), and `AlternativeRunner`
-  (`run(alternative, case) -> ObservedOutcome`).
+  (`run(alternative, case) -> ObservedOutcome`). Full signatures are in
+  `Interfaces and dependencies`.
 - `adapters/toml_jobs.py`: `TomlJobSource(root: Path)` reading every
   `jobs/*/job.toml` with `tomllib`, resolving `program`, alternative `path`,
   and input `path` relative to the job directory, and raising
@@ -771,9 +772,10 @@ function within the complexity limits.
   `env={"LC_ALL": "C", "PATH": os.environ["PATH"]}` for awk, `timeout=10`, and
   `capture_output=True`. When a case's `input_mode` is `stdin`, the single
   input is passed on standard input instead.
-- `service.py`:
-  `audit_corpus(jobs: JobSource, register: RegisterSource, roadmap: RoadmapSource) -> AuditReport`
-  and `verify_alternative(job, alternative, runner) -> tuple[CaseResult, …]`.
+- `service.py`: `audit_corpus(jobs, register, roadmap)`, taking the three
+  source ports and returning an `AuditReport`, and
+  `verify_alternative(job, alternative, runner)`, returning a tuple of
+  `CaseResult`.
 - `report.py`: `render_report(report: AuditReport) -> str`.
 
 Red: `tests/test_job_corpus_toml.py`, `tests/test_job_corpus_register.py`
