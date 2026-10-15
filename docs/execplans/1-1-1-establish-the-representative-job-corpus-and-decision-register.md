@@ -332,16 +332,16 @@ invariants and lemmas that make "the corpus is correct" falsifiable.
 
 Axioms (trusted, not verified here):
 
-- AX-1: CPython 3.14's `re.search`, `int(s, 10)`, `float(s)`, `str.split`,
+- AXIOM-1: CPython 3.14's `re.search`, `int(s, 10)`, `float(s)`, `str.split`,
   and `bytes.decode("utf-8")` behave as documented. The design's adapters are
   defined by these functions (DC-3), so the Python alternative inherits the
   intended semantics by construction.
-- AX-2: `tomllib` conforms to TOML 1.0, including exact preservation of escape
+- AXIOM-2: `tomllib` conforms to TOML 1.0, including exact preservation of escape
   sequences in basic strings.
-- AX-3: the `awk` on `PATH` implements the POSIX awk features used by the
+- AXIOM-3: the `awk` on `PATH` implements the POSIX awk features used by the
   alternatives (`match`, `substr`, `split`, `sub`, numeric strings, `exit`
   running `END`). Local evidence: GNU Awk 5.3.0.
-- AX-4: `subprocess.run` reports the child's exit status and captures its
+- AXIOM-4: `subprocess.run` reports the child's exit status and captures its
   standard output bytes faithfully.
 
 Obligations:
@@ -446,7 +446,7 @@ Obligations:
   subsequence of its input records, in input order.
   - Method: Hypothesis property executing the real subprocess.
   - Rationale: G1 requires ordered records; this checks the oracle respects
-    ordering on inputs beyond the hand-written cases.
+    ordering on inputs beyond the handwritten cases.
   - Domain: lists of 0–20 records drawn from printable text without line
     terminators, mixing lines containing and lacking the word `ERROR`;
     `max_examples=25`, `deadline=None`.
@@ -818,8 +818,10 @@ Q1 | @leynos (project owner) | 5.2.2 | Open question | 5.2.2 | filter-error-line
 Q2 | @leynos (project owner) | 5.1.1 | Open question | 5.1.2, 5.1.3 | none
 Q3 | @leynos (project owner) | 1.1.2 | Open question | 2.1.3, 6.1.1 | filter-server-errors, filter-missing-email, aggregate-endpoint-latency
 Q4 | @leynos (project owner) | 4.2.1 | Open question | 4.2.2 | validate-request-ids
-Q5 | @leynos (project owner) | 1.1.2 | Open question | 2.1.2, 2.2.1, 3.2.1 | filter-error-lines, filter-first-timeouts, validate-user-records, validate-optional-unit
-Q6 | @leynos (project owner) | 4.1.2 | Open question | 4.1.2, 6.1.2 | validate-user-records, validate-request-ids, validate-optional-unit, aggregate-endpoint-latency
+Q5 | @leynos (project owner) | 1.1.2 | Open question | 2.1.2, 2.2.1, 3.2.1 |
+    filter-error-lines, filter-first-timeouts, validate-user-records, validate-optional-unit
+Q6 | @leynos (project owner) | 4.1.2 | Open question | 4.1.2, 6.1.2 |
+    validate-user-records, validate-request-ids, validate-optional-unit, aggregate-endpoint-latency
 Q7 | @leynos (project owner) | 5.2.1 | Open question | 5.2.2 | aggregate-status-counts, aggregate-endpoint-latency
 Q8 | @leynos (project owner) | 5.2.2 | Open question | 5.2.2 | none
 ```
@@ -1029,8 +1031,8 @@ E   ModuleNotFoundError: No module named 'job_corpus'
 Expected green transcript at the end of EP-M3 (abridged):
 
 ```plaintext
-tests/test_job_corpus_alternatives.py::test_python_alternative_reproduces_expected[validate-user-records/design-example] PASSED
-tests/test_job_corpus_alternatives.py::test_awk_alternative_agrees_or_declares_divergence[validate-user-records/unicode-digits] PASSED
+test_python_alternative_reproduces_expected[validate-user-records/design-example] PASSED
+test_awk_alternative_agrees_or_declares_divergence[validate-user-records/unicode-digits] PASSED
 ```
 
 Commit after each milestone (and after each job category in EP-M3) with an
