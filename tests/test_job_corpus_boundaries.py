@@ -6,6 +6,7 @@ import typing as typ
 import pytest
 
 if typ.TYPE_CHECKING:
+    import collections.abc as cabc
     import pathlib
 
 DOMAIN_MODULES = (
@@ -20,16 +21,21 @@ DOMAIN_MODULES = (
 FORBIDDEN = {"tomllib", "subprocess", "os", "io", "shutil", "tempfile"}
 
 
-def forbidden_imports(source: str) -> set[str]:
-    """Return forbidden module imports; for example, ``import os`` yields os.
+def forbidden_imports(tree: ast.AST) -> set[str]:
+    """Return forbidden imports from a tree; ``import os`` yields ``os``.
+
+    Parameters
+    ----------
+    tree : ast.AST
+        The parsed source tree to inspect.
 
     Returns
     -------
     set[str]
-        The detected names or expanded evidence identifiers.
+        Forbidden module or imported member names.
     """
     modules = set()
-    for node in ast.walk(ast.parse(source)):
+    for node in ast.walk(tree):
         match node:
             case ast.Import(names=names):
                 modules.update(alias.name for alias in names)
@@ -46,6 +52,11 @@ def forbidden_imports(source: str) -> set[str]:
 def imported_modules(node: ast.ImportFrom) -> set[str]:
     """Resolve imports relative to the domain, such as ``from . import adapters``.
 
+    Parameters
+    ----------
+    node : ast.ImportFrom
+        The import statement whose module and member names are resolved.
+
     Returns
     -------
     set[str]
@@ -61,22 +72,42 @@ def imported_modules(node: ast.ImportFrom) -> set[str]:
     return names
 
 
+def attribute_expressions(tree: ast.AST) -> cabc.Iterator[str]:
+    """Yield attribute expressions; for example, ``pathlib.Path``.
+
+    Parameters
+    ----------
+    tree : ast.AST
+        The already parsed tree shared with the import check.
+
+    Yields
+    ------
+    str
+        The unparsed source of one attribute access.
+    """
+    for node in ast.walk(tree):
+        match node:
+            case ast.Attribute():
+                yield ast.unparse(node)
+
+
 def check_domain_modules(corpus_root: pathlib.Path) -> None:
-    """Check concrete domain sources; for example, adapters are forbidden imports."""
+    """Check concrete domain sources; for example, adapters are forbidden imports.
+
+    Parameters
+    ----------
+    corpus_root : pathlib.Path
+        The directory containing the implemented domain modules.
+    """
     for name in DOMAIN_MODULES:
         path = corpus_root / f"{name}.py"
         if name == "report" and not path.exists():
             continue  # The report module lands in EP-M2.
         assert path.exists(), f"domain module {name} must exist under corpus_root"
-        source = path.read_text()
-        forbidden = forbidden_imports(source)
+        tree = ast.parse(path.read_text())
+        forbidden = forbidden_imports(tree)
         assert not forbidden, f"{name} imports forbidden modules: {sorted(forbidden)}"
-        tree = ast.parse(source)
-        attributes = {
-            ast.unparse(node)
-            for node in ast.walk(tree)
-            if isinstance(node, ast.Attribute)
-        }
+        attributes = set(attribute_expressions(tree))
         path_attributes = {
             attribute for attribute in attributes if attribute.startswith("pathlib.")
         }
@@ -113,7 +144,7 @@ def test_domain_modules_keep_io_outside_policy(
 )
 def test_boundary_detector_rejects_forbidden_dependencies(source: str) -> None:
     """The boundary check itself has permanent failing-import controls."""
-    assert forbidden_imports(source), (
+    assert forbidden_imports(ast.parse(source)), (
         "the architecture detector must reject the forbidden import"
     )
 
@@ -128,4 +159,6 @@ def test_boundary_detector_rejects_forbidden_dependencies(source: str) -> None:
 )
 def test_boundary_detector_accepts_pure_imports(source: str) -> None:
     """Relative domain imports remain valid when they do not reach adapters."""
-    assert not forbidden_imports(source), "pure domain imports must remain permitted"
+    assert not forbidden_imports(ast.parse(source)), (
+        "pure domain imports must remain permitted"
+    )

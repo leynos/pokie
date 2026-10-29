@@ -306,8 +306,8 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   run and do not restate a check-then-format order, so the concrete-steps block
   was the only place that contradicted itself.
 - [ ] EP-M1: domain policy, comparison, and audit with unit and property
-  tests. All deterministic gates pass after fourth-review repairs (148 tests).
-  Follow-up CLI review is pending.
+  tests. All deterministic gates pass after the fifth-review refactor (148
+  tests). Follow-up CLI review is pending.
 - [ ] EP-M2: adapters, runner, report snapshots, and unhappy scenarios.
 - [ ] EP-M3: corpus content and executable alternatives.
 - [ ] EP-M4: decision register document and register tests.
@@ -788,10 +788,10 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 
 EP-M1 supplies the pure validation and comparison core with independent
 property models, exhaustive failure/status controls, reference diagnostic
-checks, and an AST architecture test. Full-gate attempt 12 passed with 148
-tests after the fourth review repairs. Follow-up local milestone review is
-pending. Later milestones still own corpus content, document adapters, reports,
-and the decision register.
+checks, and an AST architecture test. Full-gate attempt 13 passed with 148
+tests after the fifth-review boundary refactor. Follow-up local milestone
+review is pending. Later milestones still own corpus content, document
+adapters, reports, and the decision register.
 
 ## Context and orientation
 
@@ -1893,6 +1893,22 @@ otherwise reports as unused. If a milestone fails midway, revert to the last
 milestone commit with `git revert`.
 
 ## Artefacts and notes
+
+- EP-M1 full-gate attempt 13 (2026-10-29): all required formatting, type,
+  lint, test, documentation, spelling, diagram, audit, Makefile, and coverage
+  checks passed sequentially. Tests and coverage each passed 148 tests. Audit
+  found no known vulnerabilities, retaining the documented Git-package
+  limitation. Logs: `/tmp/pokie-m1-r13-*.out`.
+
+- EP-M1 review round 5: CLI 0.9.1 completed `416b7b9..ce82f37`, exit 0,
+  with one boundary-refactor finding (`/tmp/pokie-m1-coderabbit-r5.out`).
+  Import and attribute checks now share one parsed tree, and attribute
+  extraction uses a pattern-matching generator. Direct measurement reduced
+  parsing from 12 calls to six for the six implemented domain modules
+  (`/tmp/pokie-m1-review5-parse-control.out`); all 13 boundary controls passed
+  (`/tmp/pokie-m1-review5-green.out`). The unchanged behavioural controls
+  verify this refactor; full gates and reassessment were pending at this
+  checkpoint.
 
 - EP-M1 full-gate attempt 12 (2026-10-29): all required formatting, type,
   lint, test, documentation, spelling, diagram, audit, Makefile, and coverage
