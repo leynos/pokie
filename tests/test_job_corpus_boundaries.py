@@ -72,8 +72,11 @@ def imported_modules(node: ast.ImportFrom) -> set[str]:
     return names
 
 
-def attribute_expressions(tree: ast.AST) -> cabc.Iterator[str]:
-    """Yield attribute expressions; for example, ``pathlib.Path``.
+def pathlib_member_accesses(tree: ast.AST) -> cabc.Iterator[str]:
+    """Yield imported pathlib members, normalizing module aliases.
+
+    For example, ``pl.Path`` yields ``pathlib.Path`` after its alias import.
+    A pure path's ``parent`` remains an instance property, not a module member.
 
     Parameters
     ----------
@@ -83,12 +86,23 @@ def attribute_expressions(tree: ast.AST) -> cabc.Iterator[str]:
     Yields
     ------
     str
-        The unparsed source of one attribute access.
+        Each direct pathlib member under the canonical module name.
     """
+    aliases = set()
+    members = []
     for node in ast.walk(tree):
         match node:
-            case ast.Attribute():
-                yield ast.unparse(node)
+            case ast.Import(names=names):
+                aliases.update(
+                    alias.asname or "pathlib"
+                    for alias in names
+                    if alias.name == "pathlib"
+                )
+            case ast.Attribute(value=ast.Name(id=qualifier), attr=member):
+                members.append((qualifier, member))
+    for qualifier, member in members:
+        if qualifier in aliases:
+            yield f"pathlib.{member}"
 
 
 def check_domain_modules(corpus_root: pathlib.Path) -> None:
@@ -107,11 +121,7 @@ def check_domain_modules(corpus_root: pathlib.Path) -> None:
         tree = ast.parse(path.read_text())
         forbidden = forbidden_imports(tree)
         assert not forbidden, f"{name} imports forbidden modules: {sorted(forbidden)}"
-        attributes = set(attribute_expressions(tree))
-        path_attributes = {
-            attribute for attribute in attributes if attribute.startswith("pathlib.")
-        }
-        disallowed = path_attributes - {"pathlib.PurePosixPath"}
+        disallowed = set(pathlib_member_accesses(tree)) - {"pathlib.PurePosixPath"}
         assert not disallowed, f"{name} uses pathlib attributes: {sorted(disallowed)}"
 
 
@@ -162,3 +172,29 @@ def test_boundary_detector_accepts_pure_imports(source: str) -> None:
     assert not forbidden_imports(ast.parse(source)), (
         "pure domain imports must remain permitted"
     )
+
+
+@pytest.mark.parametrize(
+    ("access", "is_allowed"),
+    [
+        ("Path.cwd()", False),
+        ("PurePosixPath('example')", True),
+        ("PurePosixPath('example').parent", True),
+    ],
+)
+def test_pathlib_alias_preserves_only_pure_path_access(
+    tmp_path: pathlib.Path, access: str, *, is_allowed: bool
+) -> None:
+    """Aliases retain pure path construction and cannot hide filesystem access."""
+    for name in DOMAIN_MODULES:
+        if name == "report":
+            continue
+        source = (
+            f"import pathlib as pl\nvalue = pl.{access}\n" if name == "policy" else ""
+        )
+        (tmp_path / f"{name}.py").write_text(source)
+    if is_allowed:
+        check_domain_modules(tmp_path)
+    else:
+        with pytest.raises(AssertionError, match="uses pathlib attributes"):
+            check_domain_modules(tmp_path)

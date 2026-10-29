@@ -21,8 +21,7 @@ def _row_task_errors(
         The invalid values or repeated identifiers.
     """
     unknown = {*row.evidence_tasks, row.decide_before, *row.gates} - set(tasks)
-    if "gap" in row.evidence_tasks:
-        unknown.discard("gap")
+    unknown.discard("gap")
     errors = [f"unknown task {task}" for task in sorted(unknown)]
     if row.decide_before == "gap" or "gap" in row.gates:
         errors.append("gap is allowed only in evidence tasks")

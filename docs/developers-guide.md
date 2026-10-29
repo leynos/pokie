@@ -94,9 +94,14 @@ Reuse these helpers within the corpus harness. Keep document parsing and
 process execution in adapters, and supply loaded values to `audit_corpus`. The
 domain boundary test includes every implemented policy module, including
 `register_policy.py`, and rejects adapter dependencies through absolute or
-relative imports. The session-scoped `reference_implementation` fixture selects
-a loaded job and its reference by script kind, and shares that pair across
-policy, comparison, and audit tests. Keep this fixture within the corpus tests.
+relative imports. The checker normalizes `pathlib` import aliases before
+inspecting access: `pl.PurePosixPath` remains valid after
+`import pathlib as pl`, while `pl.Path.cwd()` is rejected under the same
+pure-path restriction.
+
+The session-scoped `reference_implementation` fixture selects a loaded job and
+its reference by script kind, and shares that pair across policy, comparison,
+and audit tests. Keep this fixture within the corpus tests.
 
 ## Automation scripts
 

@@ -306,8 +306,8 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   run and do not restate a check-then-format order, so the concrete-steps block
   was the only place that contradicted itself.
 - [ ] EP-M1: domain policy, comparison, and audit with unit and property
-  tests. All deterministic gates pass after the fifth-review refactor (148
-  tests). Follow-up CLI review is pending.
+  tests. All deterministic gates pass after sixth-review repairs (155 tests).
+  Follow-up CLI review is pending.
 - [ ] EP-M2: adapters, runner, report snapshots, and unhappy scenarios.
 - [ ] EP-M3: corpus content and executable alternatives.
 - [ ] EP-M4: decision register document and register tests.
@@ -315,6 +315,13 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   completion.
 
 ## Surprises & discoveries
+
+- (2026-10-30, EP-M1 alias conformance) The first normalization repair
+  exposed an existing false positive: a pure path's `parent` property was
+  treated as another pathlib module member. A permanent positive control
+  reproduced it. The checker now inspects direct imported-module members,
+  permitting pure path properties while still rejecting the `Path` member in
+  `pl.Path.cwd()`. Its source parser is still invoked once per module.
 
 - (2026-10-29, EP-M1 conformance) The coverage property now permanently pins
   the complete inventory and the one-job category boundary, alongside the empty
@@ -645,6 +652,12 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 
 ## Decision log
 
+- Decision (2026-10-30, EP-M1 sixth review): normalize pathlib module aliases
+  during attribute inspection. The review's alias-rejection alternative would
+  also reject valid `PurePosixPath` usage, so the owner selected normalization
+  after considering both conflicting suggestions. Controls demonstrate that
+  `pl.Path.cwd()` is rejected and `pl.PurePosixPath('example')` is accepted.
+
 - Decision (2026-10-29, EP-M1 third review): divergence findings consistently
   use `str(script.path)` as their subject. The loader's `_corpus_path` already
   yields paths such as `jobs/example/reference.py`, so prepending `job_id`
@@ -788,10 +801,10 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 
 EP-M1 supplies the pure validation and comparison core with independent
 property models, exhaustive failure/status controls, reference diagnostic
-checks, and an AST architecture test. Full-gate attempt 13 passed with 148
-tests after the fifth-review boundary refactor. Follow-up local milestone
-review is pending. Later milestones still own corpus content, document
-adapters, reports, and the decision register.
+checks, and an AST architecture test. Full-gate attempt 15 passed with 155
+tests after the sixth review repairs. Follow-up local milestone review is
+pending. Later milestones still own corpus content, document adapters, reports,
+and the decision register.
 
 ## Context and orientation
 
@@ -1893,6 +1906,32 @@ otherwise reports as unused. If a milestone fails midway, revert to the last
 milestone commit with `git revert`.
 
 ## Artefacts and notes
+
+These entries record observations at their individual checkpoints. `Progress`
+and `Outcomes & retrospective` state the current milestone status.
+
+- EP-M1 full-gate attempt 15 (2026-10-30): all required formatting, type,
+  lint, test, documentation, spelling, diagram, audit, Makefile, and coverage
+  checks passed sequentially. Tests and coverage each passed 155 tests. Audit
+  found no known vulnerabilities, retaining the documented Git-package
+  limitation. Logs: `/tmp/pokie-m1-r15-*.out`.
+
+- EP-M1 full-gate attempt 14 (2026-10-30): all required gates, audit,
+  Makefile validation, and coverage passed sequentially; tests and coverage
+  each passed 154 tests (`/tmp/pokie-m1-r14-*.out`). A later positive
+  pure-property control exposed a false positive beyond those checks.
+- EP-M1 pure-property refinement: all 71 policy/boundary checks pass
+  (`/tmp/pokie-m1-review6-pure-green.out`); full gates and reassessment of this
+  refined candidate are pending.
+
+- EP-M1 review round 6: CLI 0.9.1 completed `416b7b9..faba0a6`, exit 0,
+  with three findings (`/tmp/pokie-m1-coderabbit-r6.out`). The two alias
+  suggestions were reconciled by preserving the permitted pure-path exception
+  through normalization. The reserved `gap` token now produces one placement
+  finding when misplaced, independently of its presence in evidence cells. Red:
+  three expected assertion failures (`/tmp/pokie-m1-review6-red.out`); green:
+  70 policy/boundary checks passed (`/tmp/pokie-m1-review6-green.out`). Full
+  gates and follow-up review are pending.
 
 - EP-M1 full-gate attempt 13 (2026-10-29): all required formatting, type,
   lint, test, documentation, spelling, diagram, audit, Makefile, and coverage

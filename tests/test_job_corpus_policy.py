@@ -276,3 +276,21 @@ def test_job_requires_exactly_one_reference(
     assert [error.message for error in errors] == [
         "expected exactly one reference implementation"
     ], "zero and multiple reference implementations must each be rejected"
+
+
+@pytest.mark.parametrize("evidence_tasks", [("1.1.1",), ("gap",)])
+@pytest.mark.parametrize("placement", ["deadline", "gate"])
+def test_misplaced_gap_has_one_stable_diagnostic(
+    evidence_tasks: tuple[str, ...], placement: str
+) -> None:
+    """Misplacing the reserved token has one cause regardless of evidence cells."""
+    row = dataclasses.replace(
+        register_row(model.QuestionId.Q1),
+        evidence_tasks=evidence_tasks,
+        decide_before="gap" if placement == "deadline" else "1.1.2",
+        gates=("gap",) if placement == "gate" else ("1.1.2",),
+    )
+    errors = policy.find_register_gaps((row,), ("1.1.1", "1.1.2"))
+    assert [error.message for error in errors if error.subject == row.question] == [
+        "gap is allowed only in evidence tasks"
+    ], "a misplaced gap must have one placement finding, never an unknown-task finding"
