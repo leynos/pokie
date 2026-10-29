@@ -306,7 +306,8 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   run and do not restate a check-then-format order, so the concrete-steps block
   was the only place that contradicted itself.
 - [ ] EP-M1: domain policy, comparison, and audit with unit and property
-  tests.
+  tests. Implementation and all deterministic gates pass (2026-10-29);
+  milestone CLI review is pending.
 - [ ] EP-M2: adapters, runner, report snapshots, and unhappy scenarios.
 - [ ] EP-M3: corpus content and executable alternatives.
 - [ ] EP-M4: decision register document and register tests.
@@ -314,6 +315,30 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   completion.
 
 ## Surprises & discoveries
+
+- (2026-10-29, EP-M1 audit) The current advisory feed rejected the existing
+  lockfile versions `certifi 2026.7.22` and `filelock 4.1.1`. The parent agent
+  narrowly refreshed these existing transitive dependencies to `2026.10.23` and
+  `4.2.4` respectively; no manifest or dependency-set change was needed. The
+  lock format revision advanced from 3 to 5 with the installed uv. The
+  Git-sourced `df12-python-lints` is separately reported as unauditable through
+  PyPI; it is not one of the vulnerable packages. All other gates, including
+  134 tests and the coverage command, passed before that dependency repair.
+
+- (2026-10-29, EP-M1 validation) Four sequential full-gate attempts passed
+  formatting and type checking. Lint progressed through argument-count,
+  assertion-message, and custom-style repairs, then reported two duplicated
+  test families in `tests/test_job_corpus_comparison.py` (lines 59–72 and
+  78–92). The three-repair iteration tolerance was escalated. The subsequent
+  continuation instruction authorized the bounded repair: fold timeout cases
+  into the existing parameterized agreement table, preserving the timeout
+  control and removing repeated setup. No suppression was added.
+
+- (2026-10-29, EP-M1) Leta has no workspace registered for this linked
+  checkout (`No workspace found for current directory`). Bounded source reads
+  supplied the model and caller context. The dead-code guard correctly caught
+  21 obsolete whitelist entries after policy consumers landed; removing only
+  those entries restored its exact-set invariant.
 
 - Observation: Firecrawl research first failed with "Insufficient credits",
   so prior-art pages were read with WebFetch. After credits were restored the
@@ -606,6 +631,14 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 
 ## Decision log
 
+- Decision (2026-10-29, EP-M1): findings use a stable kind, corpus-relative
+  subject, and diagnostic message. `AuditReport` keeps its contract verdict
+  separate from evidence defects: missing coverage does not manufacture a
+  contract contradiction. These types and policy helpers are internal to the
+  corpus harness and are not reusable product validation APIs. A timeout is
+  always an unexpected difference, including on a declared divergence, because
+  it supplies no evidence of a language difference.
+
 - Decision: represent each job as a directory under `tests/job_corpus/jobs/`
   holding `job.toml`, `program.pokie`, `reference.py`, and, where useful,
   `alternative.awk` and `alternative.sh`. Rationale: `tomllib` needs no new
@@ -726,8 +759,12 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 
 ## Outcomes & retrospective
 
-Not started. Complete at each milestone and at completion, reconciling any
-discovery with the documents in `Conformance basis`.
+EP-M1 now supplies the pure validation and comparison core with independent
+property models, exhaustive failure/status controls, reference diagnostic
+checks, and an AST architecture test. All deterministic gates pass after the
+narrow transitive dependency repair. Local milestone review is pending; corpus
+content, document adapters, reports, and the decision register remain for later
+milestones. No product code or runtime dependency has changed.
 
 ## Context and orientation
 
@@ -1829,6 +1866,32 @@ otherwise reports as unused. If a milestone fails midway, revert to the last
 milestone commit with `git revert`.
 
 ## Artefacts and notes
+
+- EP-M1 full-gate attempt 6 (2026-10-29): the fixed candidate passed
+  `make fmt`, `make check-fmt`, `make typecheck`, `make lint`, `make test` (134
+  passed), `make markdownlint`, `make spelling`, `make nixie`, `make audit`,
+  `make validate`, and the SlipCover command (134 passed, one pytest
+  assertion-rewrite warning). Logs: `/tmp/pokie-m1-r6-*.out`. Audit found no
+  known vulnerabilities; the Git-only lint package remains outside the PyPI
+  advisory check. Local milestone review remains pending.
+
+- EP-M1 full-gate attempt 5: formatting, type checking, lint, tests (134
+  passed), Markdown lint, spelling, Nixie, Makefile validation, and the
+  coverage command passed (`/tmp/pokie-m1-r5-*.out`). Audit failed on two
+  unchanged transitive dependencies (`/tmp/pokie-m1-r5-audit.out`). Full
+  candidate gates are being repeated after the narrow lockfile repair.
+
+- EP-M1 full-gate attempt 4: `make fmt`, `make check-fmt`, and
+  `make typecheck` passed. `make lint` passed Ruff, Interrogate, both Pylint
+  tiers, Skylos, and Vulture, then failed the duplication sub-gate on two
+  similar test families (`/tmp/pokie-m1-r4-lint.out`). Tests and subsequent
+  gates were not run for this candidate. No M1 commit or review was made.
+
+- EP-M1 red (2026-10-29): `uv run pytest -q -n 0` on the policy and
+  comparison tests produced six assertion failures against deliberate fixed
+  stubs, without import failures (`/tmp/pokie-m1-red.out`). Green plus
+  boundary, audit, property, and whitelist checks: 70 passed in 0.70 seconds
+  (`/tmp/pokie-m1-focused2.out`). Full milestone acceptance remains pending.
 
 Planning prototypes (2026-10-15; CPython 3.14, GNU Awk 5.3.0, and mawk 1.3.4
 20240123 in `ubuntu:24.04`; mawk and GNU Awk agreed on every case):

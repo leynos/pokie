@@ -8,8 +8,8 @@ scanner cannot see through either pattern this package relies on:
   `job.toml` string names it, through `toml_values._member`, which calls
   `enum_type(text)`. Constructing a member from text is a runtime lookup, so
   `Failure.GUARD` stays unreported until some expression spells it literally.
-- Some fields and one class are read only by the policy and report modules that
-  later milestones add.
+- Some descriptive fields are read only by the report and documentation
+  checks that later milestones add.
 
 This module is Vulture's documented answer to that: it is scanned as ordinary
 source, and each attribute access below marks one declared name as read. Every
@@ -22,13 +22,11 @@ reported by Vulture, which is what keeps this list from rotting into a blanket
 exemption.
 """
 
-from job_corpus import model, ports
+from job_corpus import model
 
 # Failure categories other than `NONE`, which the oracle tests name directly.
 _ = (
-    model.Failure.STATIC,
     model.Failure.INITIALIZATION,
-    model.Failure.INPUT,
     model.Failure.GUARD,
     model.Failure.ADAPTER,
     model.Failure.ACTION,
@@ -59,16 +57,12 @@ _ = (
 # The open questions the register rows are keyed by, and the observation
 # vocabulary that decides the phase 1 verdict.
 _ = (
-    model.QuestionId.Q1,
     model.QuestionId.Q2,
     model.QuestionId.Q3,
     model.QuestionId.Q4,
     model.QuestionId.Q5,
     model.QuestionId.Q6,
     model.QuestionId.Q7,
-    model.QuestionId.Q8,
-    model.ObservationKind.CONTRADICTION,
-    model.ObservationKind.AMBIGUITY,
     model.ObservationKind.ERGONOMIC_SMELL,
     model.ObservationKind.HOST_DIVERGENCE,
     model.EvidenceStatus.ESTABLISHED,
@@ -86,40 +80,16 @@ _ = (
     model.DescribedKind.PRIOR_ART,
 )
 
-# POSIX leaves `for (key in array)` order unspecified, so an awk aggregation
-# declares `sorted-lines` instead of the exact comparison.
-_ = (model.Comparison.SORTED_LINES,)
-
 # Read by the policy and report modules of EP-M1 and EP-M2.
 _ = (
-    model.Divergence.reason,
-    model.ScriptImplementation.comparison,
     model.DescribedAlternative.description,
     model.JobCase.earliest_task,
-    model.Observation.observation_id,
     model.Observation.contracts,
-    model.Observation.questions,
     model.Observation.summary,
     model.CorpusJob.title,
     model.CorpusJob.goals,
-    model.CorpusJob.decisions,
     model.CorpusJob.contracts,
     model.CorpusJob.evidence_status,
     model.CorpusJob.provenance,
     model.CorpusJob.program,
-    model.CorpusJob.observations,
 )
-
-# The decision register, whose Markdown adapter arrives in EP-M4.
-_ = (
-    model.RegisterEntry,
-    model.RegisterEntry.question,
-    model.RegisterEntry.owner,
-    model.RegisterEntry.evidence_tasks,
-    model.RegisterEntry.decide_before,
-    model.RegisterEntry.gates,
-    model.RegisterEntry.corpus_evidence,
-)
-
-# The runner port, implemented by `adapters.process_runner`.
-_ = (ports.ProgramRunner,)
