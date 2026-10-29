@@ -13,6 +13,15 @@ def compare_outcome(
     For example, sorted-line comparison accepts ``b'b\na\n'`` for
     ``b'a\nb\n'`` while retaining duplicate lines and final-newline bytes.
 
+    Parameters
+    ----------
+    expected : model.ExpectedOutcome
+        The specified stdout, exit status, and failure category.
+    observed : model.ObservedOutcome
+        The captured output, exit status, and timeout flag.
+    comparison : model.Comparison
+        The permitted stdout ordering relaxation.
+
     Returns
     -------
     bool
@@ -38,6 +47,15 @@ def evaluate_agreement(
 
     For example, an agreeing case with a declared divergence returns
     ``Agreement.STALE_DIVERGENCE`` rather than silently hiding that claim.
+
+    Parameters
+    ----------
+    implementation : model.ScriptImplementation
+        The executable implementation and its divergence declarations.
+    case : model.JobCase
+        The input case and specified outcome.
+    observed : model.ObservedOutcome
+        The captured output, exit status, and timeout flag.
 
     Returns
     -------

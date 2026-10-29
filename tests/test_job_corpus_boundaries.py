@@ -8,7 +8,15 @@ import pytest
 if typ.TYPE_CHECKING:
     import pathlib
 
-DOMAIN_MODULES = ("model", "findings", "policy", "comparison", "audit", "report")
+DOMAIN_MODULES = (
+    "model",
+    "findings",
+    "policy",
+    "comparison",
+    "audit",
+    "register_policy",
+    "report",
+)
 FORBIDDEN = {"tomllib", "subprocess", "os", "io", "shutil", "tempfile"}
 
 

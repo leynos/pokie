@@ -86,9 +86,9 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   `sys.executable -I`; no alternative uses the network or writes outside its
   temporary directory.
 - Domain modules (`model.py`, `findings.py`, `policy.py`, `comparison.py`,
-  `audit.py`, `report.py`) perform no I/O and import nothing from `adapters/`,
-  `tomllib`, `subprocess`, `os`, `io`, `shutil`, or `tempfile`. `pathlib` is
-  allowed only for `PurePosixPath`.
+  `audit.py`, `register_policy.py`, `report.py`) perform no I/O and import
+  nothing from `adapters/`, `tomllib`, `subprocess`, `os`, `io`, `shutil`, or
+  `tempfile`. `pathlib` is allowed only for `PurePosixPath`.
 - Corpus input bytes live inside `job.toml` as single-line TOML basic strings
   (`text`) or hexadecimal (`hex`); the repository holds no separate input
   files. This avoids the `.gitignore` rule for `*.log`, binary files, and
@@ -306,9 +306,8 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   run and do not restate a check-then-format order, so the concrete-steps block
   was the only place that contradicted itself.
 - [ ] EP-M1: domain policy, comparison, and audit with unit and property
-  tests. Implementation and all deterministic gates pass (2026-10-29); first
-  milestone CLI review completed with four findings; repairs are implemented
-  and reassessment is pending.
+  tests. All deterministic gates pass after the second review repairs (144
+  tests). The next CLI review is pending.
 - [ ] EP-M2: adapters, runner, report snapshots, and unhappy scenarios.
 - [ ] EP-M3: corpus content and executable alternatives.
 - [ ] EP-M4: decision register document and register tests.
@@ -646,6 +645,13 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 
 ## Decision log
 
+- Decision (2026-10-29, EP-M1 second review): the owner approved splitting
+  register and evidence validation into the pure `register_policy.py` feature
+  module. `policy.py` preserves the approved public API by re-exporting those
+  functions. The split accommodates complete public parameter documentation
+  within the 400-line limit. The developers' guide records scope and reuse; the
+  architecture test requires the new module and checks its imports.
+
 - Decision (2026-10-29, EP-M1): findings use a stable kind, corpus-relative
   subject, and diagnostic message. `AuditReport` keeps its contract verdict
   separate from evidence defects: missing coverage does not manufacture a
@@ -774,13 +780,12 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 
 ## Outcomes & retrospective
 
-EP-M1 now supplies the pure validation and comparison core with independent
+EP-M1 supplies the pure validation and comparison core with independent
 property models, exhaustive failure/status controls, reference diagnostic
-checks, and an AST architecture test. All deterministic gates pass after the
-narrow transitive dependency repair and first review repairs (141 tests).
-Follow-up local milestone review is pending; corpus content, document adapters,
-reports, and the decision register remain for later milestones. No product code
-or runtime dependency has changed.
+checks, and an AST architecture test. Full-gate attempt 10 passed with 144
+tests after both review rounds' repairs. The next local milestone review is
+pending. Later milestones still own corpus content, document adapters, reports,
+and the decision register.
 
 ## Context and orientation
 
@@ -1883,13 +1888,46 @@ milestone commit with `git revert`.
 
 ## Artefacts and notes
 
+- EP-M1 full-gate attempt 10 (2026-10-29): `make fmt`, `make check-fmt`,
+  `make typecheck`, `make lint`, `make test`, `make markdownlint`,
+  `make spelling`, `make nixie`, `make audit`, `make validate`, and the
+  SlipCover command all passed. Tests and coverage each passed 144 tests;
+  coverage emitted the documented pytest assertion-rewrite warning. Audit found
+  no known vulnerabilities, with the Git-only lint package outside the PyPI
+  advisory check. Logs: `/tmp/pokie-m1-r10-*.out`.
+
+- EP-M1 property falsification control (2026-10-29): in one disposable
+  interpreter, coverage and register policy returned fixed empty tuples, and
+  verdict policy returned fixed `proceed`. All three property models failed on
+  assertion differences; the XML receipt confirmed exactly those three failures
+  and no execution errors. No tracked source was changed. Evidence:
+  `/tmp/pokie-m1-property-negative-controls.out` and matching `.xml`.
+  Subsequent full candidate gates use the restored, unmodified policy functions.
+
+- EP-M1 full-gate attempt 9 (2026-10-29): all required targets, including
+  audit, Makefile validation, and the coverage command, passed. Tests and
+  coverage each passed 141 tests (`/tmp/pokie-m1-r9-*.out`; the completed
+  standalone spelling log is `/tmp/pokie-m1-r9-spelling-2.out`). This is the
+  evidence for the first-review repair count in the retrospective.
+- EP-M1 review round 2: CLI 0.9.1 reviewed `416b7b9..93f2934`, completed
+  with exit 0, and emitted 12 findings covering eight underlying concerns
+  (`/tmp/pokie-m1-coderabbit-r2.out`). Repeated requests for parameter docs,
+  fixture independence, and divergence causes share one repair each. The
+  retrospective keeps the actual 141-test count and now links its evidence.
+  Public parameters are documented; match-based script selection and separate
+  divergence causes are implemented. Tests derive metadata and outputs from
+  their inputs and construct their own observation values. Red: the combined
+  divergence-defect control failed (`/tmp/pokie-m1-review2-red.out`). Green: 83
+  focused checks passed (`/tmp/pokie-m1-review2-green.out`). Full gates and
+  follow-up review were pending at this checkpoint.
+
 - EP-M1 review round 1:
   `coderabbit review --agent --committed --base-commit 416b7b91f9ab99811d88b628dcbe6e6debf8a255`
   completed, exit 0, CLI 0.9.1 (`/tmp/pokie-m1-coderabbit.out`). All four
   findings were verified and repaired. Red: four assertion failures
   (`/tmp/pokie-m1-review-red.out`); green: 57 policy/boundary tests passed
-  (`/tmp/pokie-m1-review-green.out`). Full gates and the follow-up review
-  remain pending for this repaired candidate.
+  (`/tmp/pokie-m1-review-green.out`). Full gates and follow-up review were
+  pending at this checkpoint.
 
 - EP-M1 full-gate attempt 6 (2026-10-29): the fixed candidate passed
   `make fmt`, `make check-fmt`, `make typecheck`, `make lint`, `make test` (134
@@ -1949,6 +1987,7 @@ tests/job_corpus/__init__.py          package docstring: scope and reuse policy
 tests/job_corpus/model.py             corpus domain types
 tests/job_corpus/findings.py          Finding, FindingKind, Agreement, Verdict, CaseResult, AuditReport
 tests/job_corpus/policy.py            pure validation policy
+tests/job_corpus/register_policy.py   register and evidence policy
 tests/job_corpus/comparison.py        compare_outcome, evaluate_agreement
 tests/job_corpus/audit.py             audit_corpus, verify_case
 tests/job_corpus/report.py            render_report

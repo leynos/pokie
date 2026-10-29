@@ -25,6 +25,17 @@ def audit_corpus(
     For example, an empty corpus returns coverage and missing-question
     findings even though its contradiction verdict is ``proceed``.
 
+    Parameters
+    ----------
+    jobs : cabc.Sequence[model.CorpusJob]
+        Loaded corpus jobs to validate.
+    register : cabc.Sequence[model.RegisterEntry]
+        Loaded decision-register rows.
+    task_ids : cabc.Sequence[str]
+        Roadmap task identifiers in delivery order.
+    findings_text : str
+        Findings document text that must mention observation identifiers.
+
     Returns
     -------
     findings.AuditReport
@@ -54,6 +65,17 @@ def verify_case(
 
     For example, a reference crash on an expected input error is rejected
     unless stderr starts with ``input error:`` and stdout/status agree.
+
+    Parameters
+    ----------
+    job : model.CorpusJob
+        The containing job, used for corpus-relative diagnostics.
+    implementation : model.ScriptImplementation
+        The executable implementation and its divergence declarations.
+    case : model.JobCase
+        The input case and specified outcome.
+    runner : ProgramRunner
+        The existing port that observes one implementation run.
 
     Returns
     -------

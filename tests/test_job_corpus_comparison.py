@@ -71,7 +71,7 @@ def test_agreement_checks_both_halves_of_divergence_claim(
     outcome = model.ObservedOutcome(
         case.expected.stdout,
         b"",
-        1 if result == "differs" else 0,
+        case.expected.exit_status + (1 if result == "differs" else 0),
         timed_out=result == "timeout",
     )
     assert comparison.evaluate_agreement(implementation, case, outcome) is agreement, (

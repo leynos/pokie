@@ -82,6 +82,20 @@ Run `make audit` as the dependency vulnerability gate. It runs `pip-audit` for
 Python dependencies, and Rust-enabled projects also run `cargo audit` from the
 `rust_extension` crate directory.
 
+## Corpus harness
+
+The representative corpus harness lives under `tests/job_corpus/`. Its frozen
+values and pure policies describe corpus evidence. `policy.py` provides the
+validation interface; `register_policy.py` owns decision-register deadlines,
+owners, and evidence-set checks, re-exported through `policy.py`. This feature
+split keeps the documented interfaces within the code-file size limit.
+
+Reuse these helpers within the corpus harness. Keep document parsing and
+process execution in adapters, and supply loaded values to `audit_corpus`. The
+domain boundary test includes every implemented policy module, including
+`register_policy.py`, and rejects adapter dependencies through absolute or
+relative imports.
+
 ## Automation scripts
 
 The [Scripting standards](scripting-standards.md) document provides guidance

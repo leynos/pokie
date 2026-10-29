@@ -61,7 +61,8 @@ def test_verdict_tracks_contradictions_only(
     """Only a contradiction changes the phase-one falsification verdict."""
     job = repository_jobs[0]
     observations = tuple(
-        dataclasses.replace(job.observations[0], kind=kind) for kind in kinds
+        model.Observation(f"OBS-{index}", kind, (), (), "Generated verdict control")
+        for index, kind in enumerate(kinds)
     )
     job = dataclasses.replace(job, observations=observations)
     expected = (

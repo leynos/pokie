@@ -30,7 +30,7 @@ def test_identity_checks_repeated_jobs_and_case_names(
     ]
     assert set(messages) >= {
         "duplicate job",
-        "duplicate case design-example",
+        f"duplicate case {job.cases[0].case_id}",
         "duplicate observation",
     }, "repeated job, case, and observation identities must all be reported"
 
@@ -134,21 +134,31 @@ def test_register_deadlines_and_references_are_actionable(
     )
 
 
-@pytest.mark.parametrize("evidence", [("all",), ("validate-user-records",)])
+@pytest.mark.parametrize("use_all_token", [True, False])
 def test_register_evidence_matches_jobs(
-    repository_jobs: tuple[model.CorpusJob, ...], evidence: tuple[str, ...]
+    repository_jobs: tuple[model.CorpusJob, ...], *, use_all_token: bool
 ) -> None:
-    """The all token and explicit job inventory mean the same exact set."""
+    """Explicit evidence names Q1 jobs; all is valid only when every job bears on Q1."""
+    bearing = tuple(
+        job.job_id for job in repository_jobs if model.QuestionId.Q1 in job.decisions
+    )
+    evidence = ("all",) if use_all_token else bearing
     row = dataclasses.replace(
         register_row(model.QuestionId.Q1), corpus_evidence=evidence
     )
-    assert not policy.find_evidence_mismatches(repository_jobs, (row,)), (
-        "register evidence must equal the jobs bearing on the question"
-    )
-    for wrong in (("none",), ("unknown-job",), ("all", "unknown-job")):
+    mismatches = policy.find_evidence_mismatches(repository_jobs, (row,))
+    should_mismatch = use_all_token and set(bearing) != {
+        job.job_id for job in repository_jobs
+    }
+    assert bool(mismatches) is should_mismatch, "all must expand to every loaded job"
+    unknown = max(job.job_id for job in repository_jobs) + "-missing"
+    wrong_cases = [(unknown,), ("all", unknown)]
+    if bearing:
+        wrong_cases.append(("none",))
+    for wrong in wrong_cases:
         row = dataclasses.replace(row, corpus_evidence=wrong)
         assert policy.find_evidence_mismatches(repository_jobs, (row,)), (
-            "register evidence must equal the jobs bearing on the question"
+            "unknown evidence must not satisfy the question's exact job set"
         )
 
 
@@ -157,17 +167,23 @@ def test_observations_are_documented_and_belong_to_job_questions(
 ) -> None:
     """Whole IDs and question containment prevent misleading trace links."""
     job = repository_jobs[0]
-    observation = dataclasses.replace(
-        job.observations[0], questions=(model.QuestionId.Q8,)
+    observation = model.Observation(
+        "OBS-99",
+        model.ObservationKind.AMBIGUITY,
+        (),
+        (model.QuestionId.Q8,),
+        "Synthetic trace control",
     )
-    job = dataclasses.replace(job, observations=(observation,))
+    job = dataclasses.replace(
+        job, decisions=(model.QuestionId.Q1,), observations=(observation,)
+    )
     assert policy.find_evidence_mismatches((job,), ()), (
         "observation identifiers and questions must preserve exact trace links"
     )
-    assert not policy.find_undocumented_observations((job,), "OBS-05"), (
+    assert not policy.find_undocumented_observations((job,), "OBS-99"), (
         "observation identifiers and questions must preserve exact trace links"
     )
-    assert policy.find_undocumented_observations((job,), "OBS-050"), (
+    assert policy.find_undocumented_observations((job,), "OBS-990"), (
         "observation identifiers and questions must preserve exact trace links"
     )
 
@@ -192,3 +208,41 @@ def test_reference_divergences_produce_one_finding_per_implementation(
     assert [error.message for error in errors] == [
         "reference cannot declare divergences"
     ], "reference declarations must produce exactly one actionable diagnostic"
+
+
+def test_divergence_defects_are_independently_actionable(
+    repository_jobs: tuple[model.CorpusJob, ...],
+) -> None:
+    """A missing case and a missing reason need separate diagnostic fixes."""
+    job = repository_jobs[0]
+    reference = job.alternatives[0]
+    assert isinstance(reference, model.ScriptImplementation), "fixture needs a script"
+    unknown = max(case.case_id for case in job.cases) + "-missing"
+    implementation = dataclasses.replace(
+        reference,
+        kind=model.ScriptKind.AWK,
+        divergences=(model.Divergence(unknown, " "),),
+    )
+    job = dataclasses.replace(job, alternatives=(reference, implementation))
+    errors = policy.find_identity_errors((job,))
+    assert {error.message for error in errors} == {
+        f"divergence names unknown case {unknown}",
+        f"divergence {unknown} has no reason",
+    }, "both divergence defects must identify their independent correction"
+
+
+@pytest.mark.parametrize("evidence", [("none",), ()])
+def test_empty_question_evidence_is_explicitly_representable(
+    repository_jobs: tuple[model.CorpusJob, ...], evidence: tuple[str, ...]
+) -> None:
+    """A question with no bearing jobs accepts the empty set and its none token."""
+    jobs = tuple(
+        dataclasses.replace(job, decisions=(), observations=())
+        for job in repository_jobs
+    )
+    row = dataclasses.replace(
+        register_row(model.QuestionId.Q1), corpus_evidence=evidence
+    )
+    assert not policy.find_evidence_mismatches(jobs, (row,)), (
+        "none and an empty inventory must represent exactly zero bearing jobs"
+    )

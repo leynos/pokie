@@ -96,18 +96,17 @@ def test_bad_outcome_names_expected_and_observed_bytes(
     assert isinstance(implementation, model.ScriptImplementation), (
         "the fixture alternative must be executable"
     )
-    result = audit.verify_case(
-        job,
-        implementation,
-        job.cases[0],
-        FixedRunner(model.ObservedOutcome(b"", b"", 0)),
+    case = job.cases[0]
+    observed = model.ObservedOutcome(
+        case.expected.stdout + b"unexpected", b"", case.expected.exit_status
     )
+    result = audit.verify_case(job, implementation, case, FixedRunner(observed))
     assert result.findings[0].kind is findings.FindingKind.OUTCOME, (
         "a mismatch must identify the outcome and expected/observed bytes"
     )
-    assert "expected b'1 2\\n'" in result.findings[0].message, (
-        "a mismatch must identify the outcome and expected/observed bytes"
+    assert f"expected {case.expected.stdout!r}" in result.findings[0].message, (
+        "the diagnostic must preserve the specified output bytes"
     )
-    assert "observed b''" in result.findings[0].message, (
-        "a mismatch must identify the outcome and expected/observed bytes"
+    assert f"observed {observed.stdout!r}" in result.findings[0].message, (
+        "the diagnostic must preserve the observed output bytes"
     )

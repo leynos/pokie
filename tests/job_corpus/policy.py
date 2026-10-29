@@ -9,6 +9,12 @@ import collections.abc as cabc
 import re
 
 from job_corpus import findings, model
+from job_corpus.register_policy import (
+    find_evidence_mismatches as find_evidence_mismatches,
+)
+from job_corpus.register_policy import (
+    find_register_gaps as find_register_gaps,
+)
 
 MINIMUM_CATEGORY_JOBS = 2
 """At least two examples per category prevent token coverage."""
@@ -33,6 +39,11 @@ def find_coverage_gaps(
     """Find missing categories and tags; an empty corpus has both.
 
     For example, ``find_coverage_gaps(())`` reports every category and tag.
+
+    Parameters
+    ----------
+    jobs : cabc.Sequence[model.CorpusJob]
+        Loaded corpus jobs to validate.
 
     Returns
     -------
@@ -60,6 +71,22 @@ def find_coverage_gaps(
     return (*categories, *missing_tags)
 
 
+def _script_implementations(
+    job: model.CorpusJob,
+) -> cabc.Iterator[model.ScriptImplementation]:
+    """Select executable alternatives; for example, skip a described status quo.
+
+    Yields
+    ------
+    model.ScriptImplementation
+        Each executable implementation in declaration order.
+    """
+    for item in job.alternatives:
+        match item:
+            case model.ScriptImplementation():
+                yield item
+
+
 def _job_identity_errors(job: model.CorpusJob) -> tuple[findings.Finding, ...]:
     """Check local identifiers; a repeated case names its containing job.
 
@@ -75,11 +102,7 @@ def _job_identity_errors(job: model.CorpusJob) -> tuple[findings.Finding, ...]:
         )
         for case_id in _duplicates(case.case_id for case in job.cases)
     ]
-    scripts = tuple(
-        item
-        for item in job.alternatives
-        if isinstance(item, model.ScriptImplementation)
-    )
+    scripts = tuple(_script_implementations(job))
     if sum(item.kind is model.ScriptKind.REFERENCE for item in scripts) != 1:
         errors.append(
             findings.Finding(
@@ -115,10 +138,19 @@ def _divergence_errors(
         findings.Finding(
             findings.FindingKind.IDENTITY,
             job.job_id,
-            f"invalid divergence {item.case_id}",
+            f"divergence names unknown case {item.case_id}",
         )
         for item in script.divergences
-        if item.case_id not in cases or not item.reason.strip()
+        if item.case_id not in cases
+    )
+    errors.extend(
+        findings.Finding(
+            findings.FindingKind.IDENTITY,
+            job.job_id,
+            f"divergence {item.case_id} has no reason",
+        )
+        for item in script.divergences
+        if not item.reason.strip()
     )
     if script.kind is model.ScriptKind.REFERENCE and script.divergences:
         errors.append(
@@ -137,6 +169,11 @@ def find_identity_errors(
     """Find duplicate jobs, cases, observations, and invalid declarations.
 
     For example, supplying the same job twice reports its duplicate ID.
+
+    Parameters
+    ----------
+    jobs : cabc.Sequence[model.CorpusJob]
+        Loaded corpus jobs to validate.
 
     Returns
     -------
@@ -166,6 +203,11 @@ def find_failure_mismatches(
 
     For example, ``Failure.NONE`` paired with status 1 produces a finding.
 
+    Parameters
+    ----------
+    jobs : cabc.Sequence[model.CorpusJob]
+        Loaded corpus jobs to validate.
+
     Returns
     -------
     tuple[findings.Finding, ...]
@@ -185,144 +227,19 @@ def find_failure_mismatches(
     )
 
 
-def _row_task_errors(
-    row: model.RegisterEntry, tasks: cabc.Sequence[str]
-) -> tuple[str, ...]:
-    """Check task references and ordering; ``gap`` is evidence-only.
-
-    Returns
-    -------
-    tuple[str, ...]
-        The invalid values or repeated identifiers.
-    """
-    unknown = {*row.evidence_tasks, row.decide_before, *row.gates} - set(tasks)
-    if "gap" in row.evidence_tasks:
-        unknown.discard("gap")
-    errors = [f"unknown task {task}" for task in sorted(unknown)]
-    if row.decide_before == "gap" or "gap" in row.gates:
-        errors.append("gap is allowed only in evidence tasks")
-    positions = {task: index for index, task in enumerate(tasks)}
-    known_gates = [positions[gate] for gate in row.gates if gate in positions]
-    earliest_gate = min(known_gates, default=len(tasks))
-    if row.decide_before in positions and positions[row.decide_before] > earliest_gate:
-        errors.append("decision deadline follows a gate")
-    return tuple(errors)
-
-
-def _row_errors(row: model.RegisterEntry, tasks: cabc.Sequence[str]) -> tuple[str, ...]:
-    """Find unusable row values; for example, ``TBD`` is not an owner.
-
-    Returns
-    -------
-    tuple[str, ...]
-        The invalid values or repeated identifiers.
-    """
-    errors = list(_row_task_errors(row, tasks))
-    if row.owner.strip().casefold() in {"", "tbd", "unassigned", "-"}:
-        errors.append("owner is blank or a placeholder")
-    if not row.evidence_tasks:
-        errors.append("evidence tasks are empty")
-    if not row.gates:
-        errors.append("gates are empty")
-    return tuple(errors)
-
-
-def find_register_gaps(
-    register: cabc.Sequence[model.RegisterEntry], task_ids: cabc.Sequence[str]
-) -> tuple[findings.Finding, ...]:
-    """Validate question coverage, owners, task references, and deadlines.
-
-    For example, an empty register reports missing questions Q1 through Q8.
-
-    Returns
-    -------
-    tuple[findings.Finding, ...]
-        The findings for the supplied evidence.
-    """
-    questions = {row.question for row in register}
-    errors = [
-        findings.Finding(findings.FindingKind.REGISTER, question, "missing question")
-        for question in model.QuestionId
-        if question not in questions
-    ]
-    errors.extend(
-        findings.Finding(findings.FindingKind.REGISTER, question, "duplicate question")
-        for question in _duplicates(row.question for row in register)
-    )
-    for row in register:
-        if row.question not in model.QuestionId:
-            errors.append(
-                findings.Finding(
-                    findings.FindingKind.REGISTER, row.question, "unknown question"
-                )
-            )
-        errors.extend(
-            findings.Finding(findings.FindingKind.REGISTER, row.question, error)
-            for error in _row_errors(row, task_ids)
-        )
-    return tuple(errors)
-
-
-def find_evidence_mismatches(
-    jobs: cabc.Sequence[model.CorpusJob], register: cabc.Sequence[model.RegisterEntry]
-) -> tuple[findings.Finding, ...]:
-    """Check register/job agreement and observation question containment.
-
-    For example, ``all`` expands to all loaded job IDs before comparison.
-
-    Returns
-    -------
-    tuple[findings.Finding, ...]
-        The findings for the supplied evidence.
-    """
-    errors = []
-    for row in register:
-        expected = {job.job_id for job in jobs if row.question in job.decisions}
-        actual = _expanded_evidence(row.corpus_evidence, jobs)
-        if actual != expected:
-            errors.append(
-                findings.Finding(
-                    findings.FindingKind.EVIDENCE,
-                    row.question,
-                    f"expected {sorted(expected)!r}; found {sorted(actual)!r}",
-                )
-            )
-    errors.extend(
-        findings.Finding(
-            findings.FindingKind.EVIDENCE,
-            item.observation_id,
-            "observation questions are not job decisions",
-        )
-        for job in jobs
-        for item in job.observations
-        if not set(item.questions) <= set(job.decisions)
-    )
-    return tuple(errors)
-
-
-def _expanded_evidence(
-    evidence: tuple[str, ...], jobs: cabc.Sequence[model.CorpusJob]
-) -> set[str]:
-    """Expand a sole reserved token; mixed tokens remain invalid identifiers.
-
-    Returns
-    -------
-    set[str]
-        The detected names or expanded evidence identifiers.
-    """
-    if evidence == ("all",):
-        return {job.job_id for job in jobs}
-    if evidence == ("none",):
-        return set()
-    return set(evidence)
-
-
 def find_undocumented_observations(
     jobs: cabc.Sequence[model.CorpusJob], findings_text: str
 ) -> tuple[findings.Finding, ...]:
     """Require every observation ID as a whole token in the findings text.
 
     For example, ``OBS-010`` does not document observation ``OBS-01``.
+
+    Parameters
+    ----------
+    jobs : cabc.Sequence[model.CorpusJob]
+        Loaded corpus jobs to validate.
+    findings_text : str
+        Findings document text that must mention observation identifiers.
 
     Returns
     -------
@@ -346,6 +263,11 @@ def derive_verdict(jobs: cabc.Sequence[model.CorpusJob]) -> findings.Verdict:
     """Return revise-contracts exactly when a contradiction exists.
 
     For example, an empty corpus has no contradictions and returns proceed.
+
+    Parameters
+    ----------
+    jobs : cabc.Sequence[model.CorpusJob]
+        Loaded corpus jobs to validate.
 
     Returns
     -------
