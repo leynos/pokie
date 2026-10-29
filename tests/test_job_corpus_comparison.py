@@ -35,9 +35,8 @@ def test_outcome_comparison_preserves_observable_contract(
 ) -> None:
     """Only the selected line-order relaxation may alter the comparison."""
     expected = model.ExpectedOutcome(b"a\nb\n", 0, model.Failure.NONE)
-    assert comparison.compare_outcome(expected, observed, mode) is agrees, (
-        "comparison must preserve every observable constraint except selected order"
-    )
+    why = "comparison must preserve every observable constraint except selected order"
+    assert comparison.compare_outcome(expected, observed, mode) is agrees, why
 
 
 @pytest.mark.parametrize(
@@ -71,8 +70,9 @@ def test_agreement_checks_both_halves_of_divergence_claim(
         case.expected.exit_status + (1 if result == "differs" else 0),
         timed_out=result == "timeout",
     )
+    why = "declarations must match the observed agreement truth table"
     assert comparison.evaluate_agreement(implementation, case, outcome) is agreement, (
-        "declarations must match the observed agreement truth table"
+        why
     )
 
 
@@ -80,6 +80,7 @@ def test_sorted_comparison_splits_only_newline_bytes() -> None:
     """A carriage return inside a record cannot become a record separator."""
     expected = model.ExpectedOutcome(b"a\rb\n", 0, model.Failure.NONE)
     observed = model.ObservedOutcome(b"a\nb\n", b"", 0)
+    why = "carriage returns must remain bytes inside records"
     assert not comparison.compare_outcome(
         expected, observed, model.Comparison.SORTED_LINES
-    ), "carriage returns must remain bytes inside records"
+    ), why

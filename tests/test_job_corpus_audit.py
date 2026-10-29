@@ -29,15 +29,14 @@ class FixedRunner:
 def test_audit_orders_findings_without_conflating_them_with_verdict() -> None:
     """Missing evidence is actionable even without a contract contradiction."""
     report = audit.audit_corpus((), (), (), "")
-    assert report.verdict is findings.Verdict.PROCEED, (
-        "an empty corpus has no contradiction and must retain the proceed verdict"
-    )
-    assert {error.kind for error in report.findings} == {
-        findings.FindingKind.COVERAGE,
-        findings.FindingKind.REGISTER,
-    }, "an empty corpus must report only coverage and register defects"
+    why = "an empty corpus has no contradiction and must retain the proceed verdict"
+    assert report.verdict is findings.Verdict.PROCEED, why
+    why = "an empty corpus must report only coverage and register defects"
+    expected_kinds = {findings.FindingKind.COVERAGE, findings.FindingKind.REGISTER}
+    assert {error.kind for error in report.findings} == expected_kinds, why
     keys = [(error.kind, error.subject, error.message) for error in report.findings]
-    assert keys == sorted(keys), "findings must be sorted by kind, subject, and message"
+    why = "findings must be sorted by kind, subject, and message"
+    assert keys == sorted(keys), why
 
 
 @pytest.mark.parametrize(
@@ -64,21 +63,16 @@ def test_reference_cannot_pass_by_crashing_with_matching_status(
     case = dataclasses.replace(job.cases[0], expected=expected)
     observed = model.ObservedOutcome(b"", stderr, expected.exit_status)
     result = audit.verify_case(job, implementation, case, FixedRunner(observed))
-    assert bool(result.findings) is not valid, (
-        "diagnostic findings must agree with the specified stderr validity"
-    )
-    assert result.job_id == job.job_id, (
-        "the result must retain the containing job identifier"
-    )
-    assert result.case_id == case.case_id, (
-        "the result must retain the input case identifier"
-    )
-    assert result.observed == observed, (
-        "the result must retain the exact observed outcome"
-    )
-    assert result.agreement is findings.Agreement.AGREED, (
-        "stdout and status agreement is separate from reference stderr validity"
-    )
+    why = "diagnostic findings must agree with the specified stderr validity"
+    assert bool(result.findings) is not valid, why
+    why = "the result must retain the containing job identifier"
+    assert result.job_id == job.job_id, why
+    why = "the result must retain the input case identifier"
+    assert result.case_id == case.case_id, why
+    why = "the result must retain the exact observed outcome"
+    assert result.observed == observed, why
+    why = "stdout and status agreement is separate from reference stderr validity"
+    assert result.agreement is findings.Agreement.AGREED, why
 
 
 def test_bad_outcome_names_expected_and_observed_bytes(
@@ -91,12 +85,9 @@ def test_bad_outcome_names_expected_and_observed_bytes(
         case.expected.stdout + b"unexpected", b"", case.expected.exit_status
     )
     result = audit.verify_case(job, implementation, case, FixedRunner(observed))
-    assert result.findings[0].kind is findings.FindingKind.OUTCOME, (
-        "a mismatch must identify the outcome and expected/observed bytes"
-    )
-    assert f"expected {case.expected.stdout!r}" in result.findings[0].message, (
-        "the diagnostic must preserve the specified output bytes"
-    )
-    assert f"observed {observed.stdout!r}" in result.findings[0].message, (
-        "the diagnostic must preserve the observed output bytes"
-    )
+    why = "a mismatch must identify the outcome and expected/observed bytes"
+    assert result.findings[0].kind is findings.FindingKind.OUTCOME, why
+    why = "the diagnostic must preserve the specified output bytes"
+    assert f"expected {case.expected.stdout!r}" in result.findings[0].message, why
+    why = "the diagnostic must preserve the observed output bytes"
+    assert f"observed {observed.stdout!r}" in result.findings[0].message, why

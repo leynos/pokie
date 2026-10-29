@@ -140,38 +140,25 @@ def test_domain_modules_keep_io_outside_policy(
 
 
 @pytest.mark.parametrize(
-    "source",
+    ("source", "is_allowed"),
     [
-        "import os",
-        "from subprocess import run",
-        "from job_corpus import adapters",
-        "from job_corpus.adapters import toml_jobs",
-        "from pathlib import Path",
-        "from pathlib import PosixPath",
-        "from . import adapters",
-        "from .adapters import toml_jobs",
+        ("import os", False),
+        ("from subprocess import run", False),
+        ("from job_corpus import adapters", False),
+        ("from job_corpus.adapters import toml_jobs", False),
+        ("from pathlib import Path", False),
+        ("from pathlib import PosixPath", False),
+        ("from . import adapters", False),
+        ("from .adapters import toml_jobs", False),
+        ("from . import model", True),
+        ("from .model import Failure", True),
+        ("from pathlib import PurePosixPath", True),
     ],
 )
-def test_boundary_detector_rejects_forbidden_dependencies(source: str) -> None:
-    """The boundary check itself has permanent failing-import controls."""
-    assert forbidden_imports(ast.parse(source)), (
-        "the architecture detector must reject the forbidden import"
-    )
-
-
-@pytest.mark.parametrize(
-    "source",
-    [
-        "from . import model",
-        "from .model import Failure",
-        "from pathlib import PurePosixPath",
-    ],
-)
-def test_boundary_detector_accepts_pure_imports(source: str) -> None:
-    """Relative domain imports remain valid when they do not reach adapters."""
-    assert not forbidden_imports(ast.parse(source)), (
-        "pure domain imports must remain permitted"
-    )
+def test_boundary_detector_classifies_imports(source: str, *, is_allowed: bool) -> None:
+    """Pure domain imports pass while concrete and relative adapter imports fail."""
+    why = f"the architecture detector must classify {source!r} as allowed={is_allowed}"
+    assert bool(forbidden_imports(ast.parse(source))) is not is_allowed, why
 
 
 @pytest.mark.parametrize(

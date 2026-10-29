@@ -105,3 +105,79 @@ def test_a_version_the_loader_cannot_read_is_refused(schema: str) -> None:
     why = f"schema = {schema} loaded instead of being refused"
     assert raised.value.path == RELATIVE, why
     assert raised.value.key == "schema", why
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "key"),
+    [
+        ("schema = 1\n", "", "schema"),
+        ('title = "Reject sample records"\n', "", "title"),
+        ("schema = 1", "extra = 1\nschema = 1", ""),
+        ('title = "Reject sample records"', "title = 7", "title"),
+        ('goals = ["G1"]', 'goals = "G1"', "goals"),
+        ('goals = ["G1"]', "goals = [1]", "goals"),
+        ('decisions = ["Q1"]', 'decisions = "Q1"', "decisions"),
+        ('category = "filtering"', 'category = "unknown"', "category"),
+        ('program = { path = "program.pokie", args = [] }', "program = 1", "program"),
+        ('kind = "reference"', 'kind = "unknown"', "alternatives.kind"),
+        ('id = "sample-job"', 'id = "different-job"', "id"),
+        (
+            'inputs = [{ name = "records.log", text = "ERROR a\\n" }]',
+            "inputs = 1",
+            "cases.inputs",
+        ),
+        (
+            'inputs = [{ name = "records.log", text = "ERROR a\\n" }]',
+            "inputs = [1]",
+            "cases.inputs",
+        ),
+        ('text = "ERROR a\\n"', 'text = "a\\r\\n"', "cases.inputs.text"),
+        ('text = "ERROR a\\n"', 'hex = "not hex"', "cases.inputs.hex"),
+        (', text = "ERROR a\\n"', "", "cases.inputs"),
+        ('text = "ERROR a\\n"', 'text = "a", hex = "61"', "cases.inputs"),
+        ("exit_status = 0, ", "", "cases.expected.exit_status"),
+        ("exit_status = 0", "exit_status = true", "cases.expected.exit_status"),
+        ("schema = 1", "schema = [", ""),
+    ],
+)
+def test_malformed_documents_report_the_exact_key(old: str, new: str, key: str) -> None:
+    """Each malformed public document identifies its own file and schema key."""
+    assert old in DOCUMENT, "the mutation must change the known-valid document"
+    with pytest.raises(ports.EvidenceFormatError) as raised:
+        toml_jobs.load_job(DOCUMENT.replace(old, new, 1), RELATIVE)
+    why = f"the malformed field must identify {key!r} in {RELATIVE}"
+    assert raised.value.path == RELATIVE, why
+    assert raised.value.key == key, why
+
+
+@pytest.mark.parametrize(
+    ("encoding", "expected"),
+    [
+        ('text = ""', b""),
+        ('text = "unterminated"', b"unterminated"),
+        ('hex = "fffe0d0a"', b"\xff\xfe\r\n"),
+    ],
+)
+def test_input_encodings_preserve_exact_bytes(encoding: str, expected: bytes) -> None:
+    """Empty, unterminated, and non-UTF-8 data retain their exact byte boundaries."""
+    job = toml_jobs.load_job(
+        DOCUMENT.replace('text = "ERROR a\\n"', encoding), RELATIVE
+    )
+    why = f"{encoding} must decode to {expected!r} without newline normalization"
+    assert job.cases[0].inputs[0].content == expected, why
+
+
+def test_a_job_document_that_cannot_be_read_is_reported(tmp_path: pathlib.Path) -> None:
+    """A directory in place of job.toml produces a deterministic read error."""
+    (tmp_path / RELATIVE).mkdir(parents=True)
+    with pytest.raises(
+        ports.EvidenceFormatError, match="cannot read job file"
+    ) as raised:
+        toml_jobs.load_jobs(tmp_path)
+    why = "the unreadable document must retain its corpus-relative path"
+    assert raised.value.path == RELATIVE, why
+
+
+def test_an_empty_corpus_is_loaded_for_policy_to_report(tmp_path: pathlib.Path) -> None:
+    """The loader preserves an empty inventory for the non-vacuity policy."""
+    assert not toml_jobs.load_jobs(tmp_path), "empty directories must yield no jobs"

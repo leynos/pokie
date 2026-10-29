@@ -200,10 +200,11 @@ def test_reporting_does_not_depend_on_the_callers_directory(
     expected = reported_names()
     monkeypatch.chdir(tmp_path)
     elsewhere = reported_names()
-    assert elsewhere == expected, (
+    why = (
         f"the findings changed with the caller's directory ({tmp_path}): "
         f"reported {sorted(elsewhere)} instead of {sorted(expected)}"
     )
+    assert elsewhere == expected, why
 
 
 def test_whitelist_matches_vulture() -> None:

@@ -306,8 +306,12 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   run and do not restate a check-then-format order, so the concrete-steps block
   was the only place that contradicted itself.
 - [ ] EP-M1: domain policy, comparison, and audit with unit and property
-  tests. All deterministic gates pass after sixth-review repairs (155 tests).
-  Follow-up CLI review is pending.
+  tests. Hosted CI exposed a coverage-ratchet failure after the sixth-review
+  repairs: 92.75% against the unchanged 98.88% baseline and 1-point tolerance.
+  Full sequential attempt 19 passes after public loader rejection, real runner
+  boundary, and duplicate-divergence controls: 188 tests and project line
+  coverage 2245/2290 (98.0349%), above the unchanged 97.88% floor. Follow-up
+  CLI review remains pending.
 - [ ] EP-M2: adapters, runner, report snapshots, and unhappy scenarios.
 - [ ] EP-M3: corpus content and executable alternatives.
 - [ ] EP-M4: decision register document and register tests.
@@ -315,6 +319,23 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   completion.
 
 ## Surprises & discoveries
+
+- Observation (2026-10-30, EP-M1 coverage repair): a successful SlipCover
+  command does not prove the CI ratchet. Filtering its JSON to the same
+  first-party paths (`pokie/`, `scripts/`, `tests/`) reproduces the hosted
+  92.75% failure exactly. Most missed test lines were multi-line assertion
+  messages, evaluated only on failure; the remaining adapter gaps needed public
+  boundary controls. Attempt 19 measures 2245/2290 lines (98.0349%) and 188
+  passing tests, with no baseline or coverage configuration changes. Production
+  and corpus modules cover 915/926 lines (98.8121%); remaining misses include
+  typing-only imports and pre-existing scaffold/tool paths. Attempts 16–18
+  stopped at lint for empty-sequence style, a missing assertion message, and
+  duplicated positive/negative boundary controls; the combined parameter table
+  preserves every import case and attempt 19 passes lint. Scope is 4320 net
+  Python lines and 38 files outside job directories. Logs:
+  `/tmp/pokie-m1-r19-*.out`; numerical evidence:
+  `/tmp/pokie-m1-r19-coverage.json`. The existing Git-only audit limitation
+  remains. The held review retry must inspect the repaired committed head.
 
 - (2026-10-30, EP-M1 alias conformance) The first normalization repair
   exposed an existing false positive: a pure path's `parent` property was
@@ -652,6 +673,17 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 
 ## Decision log
 
+- Decision (2026-10-30, EP-M1 coverage repair): preserve the coverage baseline
+  and include every first-party Python file. Precompute assertion diagnostic
+  strings without changing their predicates, so passing tests execute the
+  diagnostics too. Bring forward bounded EP-M2 loader and runner rejection
+  controls through their public interfaces: malformed documents retain exact
+  path/key diagnostics; byte inputs retain their representation; real child
+  processes exercise environment, shell arguments, timeout, and unsupported
+  implementation handling. EP-M2's remaining report and scenario work stays
+  open. The owner authorized these meaningful controls within the 4800-line
+  tolerance. No dependency, coverage setting, or product code changes.
+
 - Decision (2026-10-30, EP-M1 sixth review): normalize pathlib module aliases
   during attribute inspection. The review's alias-rejection alternative would
   also reject valid `PurePosixPath` usage, so the owner selected normalization
@@ -802,9 +834,14 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 EP-M1 supplies the pure validation and comparison core with independent
 property models, exhaustive failure/status controls, reference diagnostic
 checks, and an AST architecture test. Full-gate attempt 15 passed with 155
-tests after the sixth review repairs. Follow-up local milestone review is
-pending. Later milestones still own corpus content, document adapters, reports,
-and the decision register.
+tests, but hosted CI subsequently exposed a 92.75% coverage result below the
+unchanged ratchet. The repair adds public loader and runner boundary controls
+and executes existing assertion diagnostics on passing paths. Its intermediate
+187-test diagnostic reached 97.85%; full sequential attempt 19 now passes 188
+tests and measures 2245/2290 project lines (98.0349%), above the unchanged
+97.88% floor. Local milestone review remains pending. Later milestones still
+own corpus content, remaining document adapters and scenarios, reports, and the
+decision register.
 
 ## Context and orientation
 

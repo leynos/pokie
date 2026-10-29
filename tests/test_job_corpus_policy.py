@@ -10,13 +10,13 @@ from job_corpus import findings, model, policy
 def test_empty_corpus_reports_every_coverage_obligation() -> None:
     """An empty collection cannot pass the roadmap's coverage criterion."""
     gaps = policy.find_coverage_gaps(())
+    why = "an empty corpus must report every missing category and tag"
     assert {gap.subject for gap in gaps} == {
         *(f"category/{category}" for category in model.JobCategory),
         *(f"tag/{tag}" for tag in model.CaseTag),
-    }, "an empty corpus must report every missing category and tag"
-    assert all(gap.kind is findings.FindingKind.COVERAGE for gap in gaps), (
-        "every empty-corpus finding must have the coverage kind"
-    )
+    }, why
+    why = "every empty-corpus finding must have the coverage kind"
+    assert all(gap.kind is findings.FindingKind.COVERAGE for gap in gaps), why
 
 
 def test_identity_checks_repeated_jobs_and_case_names(
@@ -33,11 +33,12 @@ def test_identity_checks_repeated_jobs_and_case_names(
     messages = [
         error.message for error in policy.find_identity_errors((repeated, repeated))
     ]
+    why = "repeated job, case, and observation identities must all be reported"
     assert set(messages) >= {
         "duplicate job",
         f"duplicate case {job.cases[0].case_id}",
         "duplicate observation",
-    }, "repeated job, case, and observation identities must all be reported"
+    }, why
 
 
 @pytest.mark.parametrize("failure", list(model.Failure))
@@ -51,9 +52,8 @@ def test_failure_categories_follow_cli_status_table(
     case = dataclasses.replace(job.cases[0], expected=expected)
     job = dataclasses.replace(job, cases=(case,))
     required = expected_failure_status(failure)
-    assert bool(policy.find_failure_mismatches((job,))) is (status != required), (
-        "the failure category must agree with the DC-4 exit status"
-    )
+    why = "the failure category must agree with the DC-4 exit status"
+    assert bool(policy.find_failure_mismatches((job,))) is (status != required), why
 
 
 def expected_failure_status(failure: model.Failure) -> int:
@@ -96,32 +96,35 @@ def test_register_requires_exact_question_inventory(
         for question in model.QuestionId
     )
     tasks = ("1.1.1", "1.1.2")
-    assert not policy.find_register_gaps(rows, tasks), (
-        "the complete unique question inventory must be accepted"
-    )
+    why = "the complete unique question inventory must be accepted"
+    assert not policy.find_register_gaps(rows, tasks), why
+    why = "missing Q5 must be reported"
     assert any(
         error.subject == "Q5"
         for error in policy.find_register_gaps(rows[:4] + rows[5:], tasks)
-    ), "missing Q5 must be reported"
+    ), why
+    why = "duplicate Q5 must be reported"
     assert any(
         error.message == "duplicate question"
         for error in policy.find_register_gaps((*rows, rows[4]), tasks)
-    ), "duplicate Q5 must be reported"
+    ), why
     unknown = dataclasses.replace(rows[0], question=typ.cast("model.QuestionId", "Q9"))
+    why = "unknown Q9 must be reported"
     assert any(
         error.message == "unknown question"
         for error in policy.find_register_gaps((unknown,), tasks)
-    ), "unknown Q9 must be reported"
+    ), why
 
 
 @pytest.mark.parametrize("owner", ["", " ", "TBD", "unassigned", "-"])
 def test_register_rejects_placeholder_owners(owner: str) -> None:
     """An accountable owner must be more than a placeholder spelling."""
     row = dataclasses.replace(register_row(model.QuestionId.Q1), owner=owner)
+    why = "placeholder text cannot identify an accountable owner"
     assert any(
         "owner" in error.message
         for error in policy.find_register_gaps((row,), ("1.1.1", "1.1.2"))
-    ), "placeholder text cannot identify an accountable owner"
+    ), why
 
 
 @pytest.mark.parametrize(
@@ -141,9 +144,8 @@ def test_register_deadlines_and_references_are_actionable(
     """A row must name real evidence and decide before its earliest gate."""
     row = dataclasses.replace(register_row(model.QuestionId.Q1), **changes)
     errors = policy.find_register_gaps((row,), ("1.1.1", "1.1.2", "1.1.3"))
-    assert message in {error.message for error in errors}, (
-        "register deadlines and references must be actionable roadmap entries"
-    )
+    why = "register deadlines and references must be actionable roadmap entries"
+    assert message in {error.message for error in errors}, why
 
 
 @pytest.mark.parametrize("use_all_token", [True, False])
@@ -169,9 +171,8 @@ def test_register_evidence_matches_jobs(
         wrong_cases.append(("none",))
     for wrong in wrong_cases:
         row = dataclasses.replace(row, corpus_evidence=wrong)
-        assert policy.find_evidence_mismatches(repository_jobs, (row,)), (
-            "unknown evidence must not satisfy the question's exact job set"
-        )
+        why = "unknown evidence must not satisfy the question's exact job set"
+        assert policy.find_evidence_mismatches(repository_jobs, (row,)), why
 
 
 def test_observations_are_documented_and_belong_to_job_questions(
@@ -189,15 +190,12 @@ def test_observations_are_documented_and_belong_to_job_questions(
     job = dataclasses.replace(
         job, decisions=(model.QuestionId.Q1,), observations=(observation,)
     )
-    assert policy.find_evidence_mismatches((job,), ()), (
-        "an observation outside its job decisions must be reported"
-    )
-    assert not policy.find_undocumented_observations((job,), "OBS-99"), (
-        "the exact observation identifier must count as documented"
-    )
-    assert policy.find_undocumented_observations((job,), "OBS-990"), (
-        "a longer identifier must not document the shorter observation"
-    )
+    why = "an observation outside its job decisions must be reported"
+    assert policy.find_evidence_mismatches((job,), ()), why
+    why = "the exact observation identifier must count as documented"
+    assert not policy.find_undocumented_observations((job,), "OBS-99"), why
+    why = "a longer identifier must not document the shorter observation"
+    assert policy.find_undocumented_observations((job,), "OBS-990"), why
 
 
 def test_reference_divergences_produce_one_finding_per_implementation(
@@ -216,9 +214,32 @@ def test_reference_divergences_produce_one_finding_per_implementation(
     )
     job = dataclasses.replace(job, alternatives=(reference,))
     errors = policy.find_identity_errors((job,))
+    why = "reference declarations must produce exactly one actionable diagnostic"
     assert [error.message for error in errors] == [
         "reference cannot declare divergences"
-    ], "reference declarations must produce exactly one actionable diagnostic"
+    ], why
+
+
+def test_duplicate_divergences_identify_the_script_and_case(
+    reference_implementation: tuple[model.CorpusJob, model.ScriptImplementation],
+) -> None:
+    """Repeated valid declarations remain actionable instead of collapsing."""
+    job, reference = reference_implementation
+    case_id = job.cases[0].case_id
+    declaration = model.Divergence(case_id, "deliberate alternative semantics")
+    alternative = dataclasses.replace(
+        reference,
+        kind=model.ScriptKind.AWK,
+        divergences=(declaration, declaration),
+    )
+    job = dataclasses.replace(job, alternatives=(reference, alternative))
+    expected = findings.Finding(
+        findings.FindingKind.IDENTITY,
+        str(alternative.path),
+        f"duplicate divergence {case_id}",
+    )
+    why = "a repeated valid declaration must produce exactly its duplicate finding"
+    assert policy.find_identity_errors((job,)) == (expected,), why
 
 
 def test_divergence_defects_are_independently_actionable(
@@ -240,11 +261,12 @@ def test_divergence_defects_are_independently_actionable(
         f"divergence names unknown case {unknown}",
         f"divergence {unknown} has no reason",
     }
+    why = "each script and divergence defect must identify its own correction"
     assert {(error.subject, error.message) for error in errors} == {
         (str(script.path), message)
         for script in (first, second)
         for message in expected_messages
-    }, "each script and divergence defect must identify its own correction"
+    }, why
 
 
 @pytest.mark.parametrize("evidence", [("none",), ()])
@@ -259,9 +281,8 @@ def test_empty_question_evidence_is_explicitly_representable(
     row = dataclasses.replace(
         register_row(model.QuestionId.Q1), corpus_evidence=evidence
     )
-    assert not policy.find_evidence_mismatches(jobs, (row,)), (
-        "none and an empty inventory must represent exactly zero bearing jobs"
-    )
+    why = "none and an empty inventory must represent exactly zero bearing jobs"
+    assert not policy.find_evidence_mismatches(jobs, (row,)), why
 
 
 @pytest.mark.parametrize("reference_count", [0, 2])
@@ -273,9 +294,10 @@ def test_job_requires_exactly_one_reference(
     job, reference = reference_implementation
     job = dataclasses.replace(job, alternatives=(reference,) * reference_count)
     errors = policy.find_identity_errors((job,))
+    why = "zero and multiple reference implementations must each be rejected"
     assert [error.message for error in errors] == [
         "expected exactly one reference implementation"
-    ], "zero and multiple reference implementations must each be rejected"
+    ], why
 
 
 @pytest.mark.parametrize("evidence_tasks", [("1.1.1",), ("gap",)])
@@ -291,6 +313,9 @@ def test_misplaced_gap_has_one_stable_diagnostic(
         gates=("gap",) if placement == "gate" else ("1.1.2",),
     )
     errors = policy.find_register_gaps((row,), ("1.1.1", "1.1.2"))
+    why = (
+        "a misplaced gap must have one placement finding, never an unknown-task finding"
+    )
     assert [error.message for error in errors if error.subject == row.question] == [
         "gap is allowed only in evidence tasks"
-    ], "a misplaced gap must have one placement finding, never an unknown-task finding"
+    ], why

@@ -38,17 +38,17 @@ def test_coverage_gaps_match_model(
     present_tags = tags if categories else set()
     expected.update(f"tag/{tag}" for tag in model.CaseTag if tag not in present_tags)
     gaps = policy.find_coverage_gaps(jobs)
-    assert {gap.subject for gap in gaps} == expected, (
-        "coverage subjects must equal the model's missing category and tag set"
-    )
+    why = "coverage subjects must equal the model's missing category and tag set"
+    assert {gap.subject for gap in gaps} == expected, why
     for category in model.JobCategory:
         category_findings = [
             gap for gap in gaps if gap.subject == f"category/{category}"
         ]
         if counts[category] < 2:
-            assert f"found {counts[category]}" in category_findings[0].message, (
+            why = (
                 f"the category finding must report its actual count {counts[category]}"
             )
+            assert f"found {counts[category]}" in category_findings[0].message, why
 
 
 @hyp.given(kinds=st.lists(st.sampled_from(tuple(model.ObservationKind)), max_size=12))
@@ -70,9 +70,8 @@ def test_verdict_tracks_contradictions_only(
         if model.ObservationKind.CONTRADICTION in kinds
         else findings.Verdict.PROCEED
     )
-    assert policy.derive_verdict((job,)) is expected, (
-        "only contradictions may change the contract verdict"
-    )
+    why = "only contradictions may change the contract verdict"
+    assert policy.derive_verdict((job,)) is expected, why
 
 
 @hyp.given(
@@ -115,6 +114,5 @@ def test_register_gaps_match_model(
         row_invalid = row_invalid or deadline > gate
     if row_invalid:
         expected_subjects.update(questions)
-    assert {error.subject for error in errors} == expected_subjects, (
-        "register findings must match the independent multiset/order model"
-    )
+    why = "register findings must match the independent multiset/order model"
+    assert {error.subject for error in errors} == expected_subjects, why

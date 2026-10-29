@@ -99,9 +99,8 @@ def test_corpus_is_non_vacuous() -> None:
     assert len(JOBS) == EXPECTED_JOB_COUNT, why
     assert len(REFERENCE_RUNS) == EXPECTED_CASE_COUNT, why
     assert categories == EXPECTED_CATEGORIES, why
-    assert tags >= REQUIRED_TAGS, (
-        f"every planned tag needs a case; missing {REQUIRED_TAGS - tags}"
-    )
+    why = f"every planned tag needs a case; missing {REQUIRED_TAGS - tags}"
+    assert tags >= REQUIRED_TAGS, why
 
 
 @pytest.mark.parametrize(("job", "case", "implementation"), REFERENCE_RUNS)

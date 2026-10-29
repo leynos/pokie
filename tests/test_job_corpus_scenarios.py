@@ -59,9 +59,8 @@ def select_job(jobs: tuple[model.CorpusJob, ...], job_id: str) -> model.CorpusJo
         that names the jobs the corpus does hold, rather than picking one.
     """
     by_id = {job.job_id: job for job in jobs}
-    assert job_id in by_id, (
-        f"the corpus holds no job {job_id!r}; it holds {sorted(by_id)!r}"
-    )
+    why = f"the corpus holds no job {job_id!r}; it holds {sorted(by_id)!r}"
+    assert job_id in by_id, why
     return by_id[job_id]
 
 

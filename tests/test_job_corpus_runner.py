@@ -13,15 +13,12 @@ input alike, so a one-record input makes the routes distinguishable: ``1 0``
 when the record arrived, ``0 0`` when it did not.
 """
 
-import typing as typ
+import dataclasses
+import pathlib
 
 import pytest
 from job_corpus import model, ports
-
-if typ.TYPE_CHECKING:
-    # pytest matches a fixture by parameter name, not by annotation, so the
-    # runner type is needed only by the type checker.
-    from job_corpus.adapters import process_runner
+from job_corpus.adapters import process_runner
 
 ONE_RECORD = (model.InputFile(name="users.log", content=b"user=ada uid=42\n"),)
 """A single input the oracle reports as ``1 0`` when it receives it."""
@@ -169,9 +166,8 @@ def test_every_named_operand_reaches_the_program(
     operands = tuple(input_file.name for input_file in TWO_RECORDS)
     case = make_case(operands, TWO_RECORDS)
     outcome = process_runner_instance.run(reference_of(repository_jobs), case)
-    assert outcome.stdout == b"2 0\n", (
-        f"operands {operands!r} lost an input: observed {outcome.stdout!r}"
-    )
+    why = f"operands {operands!r} lost an input: observed {outcome.stdout!r}"
+    assert outcome.stdout == b"2 0\n", why
 
 
 def test_an_input_name_that_is_not_a_bare_file_name_is_refused(
@@ -215,3 +211,100 @@ def test_two_inputs_sharing_a_name_are_refused(
     case = make_case(("users.log",), duplicated)
     with pytest.raises(ports.EvidenceFormatError):
         process_runner_instance.run(reference_of(repository_jobs), case)
+
+
+def test_mixed_stdin_and_file_operands_are_refused(
+    process_runner_instance: process_runner.ProcessRunner,
+    reference_implementation: tuple[model.CorpusJob, model.ScriptImplementation],
+) -> None:
+    """The case format cannot unambiguously select bytes for mixed stdin/files."""
+    _, implementation = reference_implementation
+    case = make_case(("-", "users.log"), ONE_RECORD)
+    with pytest.raises(ports.EvidenceFormatError) as raised:
+        process_runner_instance.run(implementation, case)
+    assert raised.value.key == "operands", "mixed routes must name the operand key"
+
+
+def test_a_missing_script_is_a_case_format_error(
+    tmp_path: pathlib.Path,
+    reference_implementation: tuple[model.CorpusJob, model.ScriptImplementation],
+) -> None:
+    """A missing implementation does not masquerade as an ordinary program crash."""
+    job, implementation = reference_implementation
+    runner = process_runner.ProcessRunner(corpus_root=tmp_path)
+    with pytest.raises(ports.EvidenceFormatError) as raised:
+        runner.run(implementation, job.cases[0])
+    assert raised.value.path == implementation.path, (
+        "the missing script path must survive"
+    )
+    assert raised.value.key == "path", "the format error must identify the path key"
+
+
+@pytest.mark.parametrize(
+    ("kind", "key"), [(model.ScriptKind.POKIE, "kind"), (model.ScriptKind.AWK, "awk")]
+)
+def test_unavailable_implementation_kinds_are_explicit(
+    process_runner_instance: process_runner.ProcessRunner,
+    reference_implementation: tuple[model.CorpusJob, model.ScriptImplementation],
+    kind: model.ScriptKind,
+    key: str,
+) -> None:
+    """An absent executable or unsupported language yields evidence errors."""
+    job, reference = reference_implementation
+    runner = dataclasses.replace(process_runner_instance, awk_executable=None)
+    implementation = dataclasses.replace(reference, kind=kind)
+    with pytest.raises(ports.EvidenceFormatError) as raised:
+        runner.run(implementation, job.cases[0])
+    why = f"{kind} must identify its unsupported capability through {key!r}"
+    assert raised.value.key == key, why
+
+
+@pytest.mark.parametrize(
+    ("kind", "script", "expected"),
+    [
+        pytest.param(
+            model.ScriptKind.REFERENCE,
+            "import os\nprint(','.join(sorted(os.environ)))\n",
+            model.ObservedOutcome(b"LC_ALL,PATH\n", b"", 0),
+            id="isolated-environment",
+        ),
+        pytest.param(
+            model.ScriptKind.SHELL,
+            'printf \'%s:%s\\n\' "$LC_ALL" "$1"\n',
+            model.ObservedOutcome(b"C:fixture-argument\n", b"", 0),
+            id="shell-arguments",
+        ),
+        pytest.param(
+            model.ScriptKind.REFERENCE,
+            "import time\ntime.sleep(2)\n",
+            model.ObservedOutcome(b"", b"", 0, timed_out=True),
+            id="bounded-timeout",
+        ),
+    ],
+)
+def test_command_boundaries_and_timeouts_are_observable(
+    tmp_path: pathlib.Path,
+    kind: model.ScriptKind,
+    script: str,
+    expected: model.ObservedOutcome,
+) -> None:
+    """Real child processes preserve environment/argument boundaries and timeouts."""
+    path = tmp_path / "implementation"
+    path.write_text(script)
+    runner = process_runner.ProcessRunner(
+        corpus_root=tmp_path, timeout=0.01 if expected.timed_out else 10.0
+    )
+    implementation = model.ScriptImplementation(
+        kind=kind, path=pathlib.PurePosixPath(path.name), args=("fixture-argument",)
+    )
+    outcome = runner.run(implementation, make_case((), ONE_RECORD))
+    why = f"the {kind} run must preserve its timeout classification"
+    assert outcome.timed_out is expected.timed_out, why
+    why = f"the {kind} run must preserve stdout bytes"
+    assert outcome.stdout == expected.stdout, why
+    why = f"the {kind} run must preserve stderr bytes"
+    assert outcome.stderr == expected.stderr, why
+    if not expected.timed_out:
+        assert outcome.exit_status == expected.exit_status, (
+            "completed runs retain status"
+        )

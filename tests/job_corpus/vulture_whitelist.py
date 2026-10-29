@@ -72,9 +72,8 @@ _ = (
     model.EvidenceStatus.DEFERRED,
 )
 
-# Reserved for roadmap task 2.1.3, which supplies the pokie interpreter.
+# Prose alternative kinds are resolved from TOML text.
 _ = (
-    model.ScriptKind.POKIE,
     model.DescribedKind.STATUS_QUO,
     model.DescribedKind.PRIOR_ART,
 )
