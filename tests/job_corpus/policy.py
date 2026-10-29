@@ -111,23 +111,23 @@ def _divergence_errors(
         )
         for case_id in _duplicates(item.case_id for item in script.divergences)
     ]
-    for item in script.divergences:
-        if item.case_id not in cases or not item.reason.strip():
-            errors.append(
-                findings.Finding(
-                    findings.FindingKind.IDENTITY,
-                    job.job_id,
-                    f"invalid divergence {item.case_id}",
-                )
+    errors.extend(
+        findings.Finding(
+            findings.FindingKind.IDENTITY,
+            job.job_id,
+            f"invalid divergence {item.case_id}",
+        )
+        for item in script.divergences
+        if item.case_id not in cases or not item.reason.strip()
+    )
+    if script.kind is model.ScriptKind.REFERENCE and script.divergences:
+        errors.append(
+            findings.Finding(
+                findings.FindingKind.IDENTITY,
+                job.job_id,
+                "reference cannot declare divergences",
             )
-        if script.kind is model.ScriptKind.REFERENCE:
-            errors.append(
-                findings.Finding(
-                    findings.FindingKind.IDENTITY,
-                    job.job_id,
-                    "reference cannot declare divergences",
-                )
-            )
+        )
     return tuple(errors)
 
 

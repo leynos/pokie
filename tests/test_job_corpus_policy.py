@@ -45,16 +45,27 @@ def test_failure_categories_follow_cli_status_table(
     expected = model.ExpectedOutcome(b"", status, failure)
     case = dataclasses.replace(job.cases[0], expected=expected)
     job = dataclasses.replace(job, cases=(case,))
-    required = (
-        0
-        if failure is model.Failure.NONE
-        else 2
-        if failure is model.Failure.STATIC
-        else 1
-    )
+    required = expected_failure_status(failure)
     assert bool(policy.find_failure_mismatches((job,))) is (status != required), (
         "the failure category must agree with the DC-4 exit status"
     )
+
+
+def expected_failure_status(failure: model.Failure) -> int:
+    """Apply DC-4's independent table; for example, static failures use status 2.
+
+    Returns
+    -------
+    int
+        The status required by the specified failure category.
+    """
+    match failure:
+        case model.Failure.NONE:
+            return 0
+        case model.Failure.STATIC:
+            return 2
+        case _:
+            return 1
 
 
 def register_row(question: model.QuestionId) -> model.RegisterEntry:
@@ -159,3 +170,25 @@ def test_observations_are_documented_and_belong_to_job_questions(
     assert policy.find_undocumented_observations((job,), "OBS-050"), (
         "observation identifiers and questions must preserve exact trace links"
     )
+
+
+def test_reference_divergences_produce_one_finding_per_implementation(
+    repository_jobs: tuple[model.CorpusJob, ...],
+) -> None:
+    """An invalid reference declaration should not repeat the same diagnostic."""
+    job = repository_jobs[0]
+    reference = job.alternatives[0]
+    assert isinstance(reference, model.ScriptImplementation), (
+        "fixture needs a reference"
+    )
+    reference = dataclasses.replace(
+        reference,
+        divergences=tuple(
+            model.Divergence(case.case_id, "unsupported") for case in job.cases
+        ),
+    )
+    job = dataclasses.replace(job, alternatives=(reference,))
+    errors = policy.find_identity_errors((job,))
+    assert [error.message for error in errors] == [
+        "reference cannot declare divergences"
+    ], "reference declarations must produce exactly one actionable diagnostic"

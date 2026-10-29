@@ -25,16 +25,8 @@ def forbidden_imports(source: str) -> set[str]:
         match node:
             case ast.Import(names=names):
                 modules.update(alias.name for alias in names)
-            case ast.ImportFrom(module="pathlib", names=names):
-                modules.update(
-                    f"pathlib.{alias.name}"
-                    for alias in names
-                    if alias.name != "PurePosixPath"
-                )
-            case ast.ImportFrom(module="job_corpus", names=names):
-                modules.update(f"job_corpus.{alias.name}" for alias in names)
-            case ast.ImportFrom(module=module):
-                modules.add(module or "")
+            case ast.ImportFrom():
+                modules.update(imported_modules(node))
     return {
         name
         for name in modules
@@ -43,12 +35,31 @@ def forbidden_imports(source: str) -> set[str]:
     }
 
 
-def test_domain_modules_keep_io_outside_policy(corpus_root: pathlib.Path) -> None:
-    """Loaded values are the sole input to every currently implemented domain module."""
+def imported_modules(node: ast.ImportFrom) -> set[str]:
+    """Resolve imports relative to the domain, such as ``from . import adapters``.
+
+    Returns
+    -------
+    set[str]
+        Module and selected imported names used by the boundary filter.
+    """
+    prefix = "job_corpus." if node.level else ""
+    module = prefix + (node.module or "")
+    names = {module}
+    if node.module in {None, "job_corpus", "pathlib"}:
+        stem = module.rstrip(".")
+        names.update(f"{stem}.{alias.name}" for alias in node.names)
+    names.discard("pathlib.PurePosixPath")
+    return names
+
+
+def check_domain_modules(corpus_root: pathlib.Path) -> None:
+    """Check concrete domain sources; for example, adapters are forbidden imports."""
     for name in DOMAIN_MODULES:
         path = corpus_root / f"{name}.py"
-        if not path.exists():
+        if name == "report" and not path.exists():
             continue  # The report module lands in EP-M2.
+        assert path.exists(), f"domain module {name} must exist under corpus_root"
         source = path.read_text()
         assert not forbidden_imports(source), name
         tree = ast.parse(source)
@@ -64,6 +75,20 @@ def test_domain_modules_keep_io_outside_policy(corpus_root: pathlib.Path) -> Non
 
 
 @pytest.mark.parametrize(
+    "is_missing", [False, True], ids=["repository", "misplaced-root"]
+)
+def test_domain_modules_keep_io_outside_policy(
+    corpus_root: pathlib.Path, tmp_path: pathlib.Path, *, is_missing: bool
+) -> None:
+    """Validate concrete domain modules and reject an empty misplaced corpus root."""
+    if is_missing:
+        with pytest.raises(AssertionError, match="domain module"):
+            check_domain_modules(tmp_path)
+    else:
+        check_domain_modules(corpus_root)
+
+
+@pytest.mark.parametrize(
     "source",
     [
         "import os",
@@ -72,6 +97,8 @@ def test_domain_modules_keep_io_outside_policy(corpus_root: pathlib.Path) -> Non
         "from job_corpus.adapters import toml_jobs",
         "from pathlib import Path",
         "from pathlib import PosixPath",
+        "from . import adapters",
+        "from .adapters import toml_jobs",
     ],
 )
 def test_boundary_detector_rejects_forbidden_dependencies(source: str) -> None:
@@ -79,3 +106,16 @@ def test_boundary_detector_rejects_forbidden_dependencies(source: str) -> None:
     assert forbidden_imports(source), (
         "the architecture detector must reject the forbidden import"
     )
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "from . import model",
+        "from .model import Failure",
+        "from pathlib import PurePosixPath",
+    ],
+)
+def test_boundary_detector_accepts_pure_imports(source: str) -> None:
+    """Relative domain imports remain valid when they do not reach adapters."""
+    assert not forbidden_imports(source), "pure domain imports must remain permitted"

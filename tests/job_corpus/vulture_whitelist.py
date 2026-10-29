@@ -37,7 +37,6 @@ _ = (
 # Categories and case tags exercised by jobs EP-M3 adds; only the
 # capture-validation tags are named in Python today.
 _ = (
-    model.JobCategory.FILTERING,
     model.JobCategory.AGGREGATION,
     model.CaseTag.PRESERVED_TEXT,
     model.CaseTag.OPTIONAL_CAPTURE,

@@ -14,6 +14,11 @@ from job_corpus import findings, model, policy
     tags=st.sets(st.sampled_from(tuple(model.CaseTag))),
 )
 @hyp.example(categories=[], tags=set())
+@hyp.example(
+    categories=[category for category in model.JobCategory for _ in range(2)],
+    tags=set(model.CaseTag),
+)
+@hyp.example(categories=[model.JobCategory.FILTERING], tags=set())
 def test_coverage_gaps_match_model(
     repository_jobs: tuple[model.CorpusJob, ...],
     categories: list[model.JobCategory],

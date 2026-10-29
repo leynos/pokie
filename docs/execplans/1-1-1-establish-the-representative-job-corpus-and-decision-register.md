@@ -306,8 +306,9 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   run and do not restate a check-then-format order, so the concrete-steps block
   was the only place that contradicted itself.
 - [ ] EP-M1: domain policy, comparison, and audit with unit and property
-  tests. Implementation and all deterministic gates pass (2026-10-29);
-  milestone CLI review is pending.
+  tests. Implementation and all deterministic gates pass (2026-10-29); first
+  milestone CLI review completed with four findings; repairs are implemented
+  and reassessment is pending.
 - [ ] EP-M2: adapters, runner, report snapshots, and unhappy scenarios.
 - [ ] EP-M3: corpus content and executable alternatives.
 - [ ] EP-M4: decision register document and register tests.
@@ -315,6 +316,20 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   completion.
 
 ## Surprises & discoveries
+
+- (2026-10-29, EP-M1 conformance) The coverage property now permanently pins
+  the complete inventory and the one-job category boundary, alongside the empty
+  corpus example, as INV-COV-1 specifies. Its named filtering example also
+  removes the corresponding obsolete Vulture exemption.
+
+- (2026-10-29, EP-M1 review) CodeRabbit CLI 0.9.1 completed review of
+  `416b7b9..9a6f14b` and found one repeated reference-declaration diagnostic,
+  two architecture-test gaps, and a nested conditional in the independent
+  failure/status table. Four red controls reproduced the diagnostic duplicate,
+  missing-module vacuity, and two relative-adapter import bypasses. The
+  repaired checker resolves relative domain imports, rejecting adapters while
+  permitting pure relative imports; it requires every implemented domain
+  module. The independent status table now uses a `match` helper.
 
 - (2026-10-29, EP-M1 audit) The current advisory feed rejected the existing
   lockfile versions `certifi 2026.7.22` and `filelock 4.1.1`. The parent agent
@@ -762,9 +777,10 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 EP-M1 now supplies the pure validation and comparison core with independent
 property models, exhaustive failure/status controls, reference diagnostic
 checks, and an AST architecture test. All deterministic gates pass after the
-narrow transitive dependency repair. Local milestone review is pending; corpus
-content, document adapters, reports, and the decision register remain for later
-milestones. No product code or runtime dependency has changed.
+narrow transitive dependency repair and first review repairs (141 tests).
+Follow-up local milestone review is pending; corpus content, document adapters,
+reports, and the decision register remain for later milestones. No product code
+or runtime dependency has changed.
 
 ## Context and orientation
 
@@ -1866,6 +1882,14 @@ otherwise reports as unused. If a milestone fails midway, revert to the last
 milestone commit with `git revert`.
 
 ## Artefacts and notes
+
+- EP-M1 review round 1:
+  `coderabbit review --agent --committed --base-commit 416b7b91f9ab99811d88b628dcbe6e6debf8a255`
+  completed, exit 0, CLI 0.9.1 (`/tmp/pokie-m1-coderabbit.out`). All four
+  findings were verified and repaired. Red: four assertion failures
+  (`/tmp/pokie-m1-review-red.out`); green: 57 policy/boundary tests passed
+  (`/tmp/pokie-m1-review-green.out`). Full gates and the follow-up review
+  remain pending for this repaired candidate.
 
 - EP-M1 full-gate attempt 6 (2026-10-29): the fixed candidate passed
   `make fmt`, `make check-fmt`, `make typecheck`, `make lint`, `make test` (134
