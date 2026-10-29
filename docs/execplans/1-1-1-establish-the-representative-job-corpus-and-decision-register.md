@@ -99,7 +99,7 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 ## Tolerances (exception triggers)
 
 - Scope: if the change needs more than 45 files outside
-  `tests/job_corpus/jobs/`, or more than 1,200 net lines of Python outside that
+  `tests/job_corpus/jobs/`, or more than 4,800 net lines of Python outside that
   directory, stop and escalate.
 - Interface: if anything under `pokie/` must change, stop and escalate.
 - Dependencies: if anything beyond the three approved development dependencies
