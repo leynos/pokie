@@ -189,14 +189,13 @@ def test_observations_are_documented_and_belong_to_job_questions(
 
 
 def test_reference_divergences_produce_one_finding_per_implementation(
-    repository_jobs: tuple[model.CorpusJob, ...],
+    reference_implementation: tuple[model.CorpusJob, model.ScriptImplementation],
 ) -> None:
     """An invalid reference declaration should not repeat the same diagnostic."""
-    job = repository_jobs[0]
-    reference = job.alternatives[0]
-    assert isinstance(reference, model.ScriptImplementation), (
-        "fixture needs a reference"
-    )
+    job, reference = reference_implementation
+    first = job.cases[0]
+    cases = (first, dataclasses.replace(first, case_id=first.case_id + "-second"))
+    job = dataclasses.replace(job, cases=cases)
     reference = dataclasses.replace(
         reference,
         divergences=tuple(
@@ -211,24 +210,29 @@ def test_reference_divergences_produce_one_finding_per_implementation(
 
 
 def test_divergence_defects_are_independently_actionable(
-    repository_jobs: tuple[model.CorpusJob, ...],
+    reference_implementation: tuple[model.CorpusJob, model.ScriptImplementation],
 ) -> None:
-    """A missing case and a missing reason need separate diagnostic fixes."""
-    job = repository_jobs[0]
-    reference = job.alternatives[0]
-    assert isinstance(reference, model.ScriptImplementation), "fixture needs a script"
+    """Each malformed script and each defect need a distinct actionable finding."""
+    job, reference = reference_implementation
     unknown = max(case.case_id for case in job.cases) + "-missing"
-    implementation = dataclasses.replace(
+    first = dataclasses.replace(
         reference,
         kind=model.ScriptKind.AWK,
+        path=reference.path.with_name("first.awk"),
         divergences=(model.Divergence(unknown, " "),),
     )
-    job = dataclasses.replace(job, alternatives=(reference, implementation))
+    second = dataclasses.replace(first, path=reference.path.with_name("second.awk"))
+    job = dataclasses.replace(job, alternatives=(reference, first, second))
     errors = policy.find_identity_errors((job,))
-    assert {error.message for error in errors} == {
+    expected_messages = {
         f"divergence names unknown case {unknown}",
         f"divergence {unknown} has no reason",
-    }, "both divergence defects must identify their independent correction"
+    }
+    assert {(error.subject, error.message) for error in errors} == {
+        (str(script.path), message)
+        for script in (first, second)
+        for message in expected_messages
+    }, "each script and divergence defect must identify its own correction"
 
 
 @pytest.mark.parametrize("evidence", [("none",), ()])

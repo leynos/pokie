@@ -11,14 +11,11 @@ its seed rather than a fresh draw.
 import os
 import pathlib
 import shutil
-import typing as typ
 
 import hypothesis
 import pytest
+from job_corpus import model
 from job_corpus.adapters import process_runner, toml_jobs
-
-if typ.TYPE_CHECKING:
-    from job_corpus import model
 
 hypothesis.settings.register_profile("default", deadline=None)
 hypothesis.settings.register_profile(
@@ -87,3 +84,30 @@ def process_runner_instance(
     return process_runner.ProcessRunner(
         corpus_root=corpus_root, awk_executable=awk_executable
     )
+
+
+@pytest.fixture(scope="session")
+def reference_implementation(
+    repository_jobs: tuple[model.CorpusJob, ...],
+) -> tuple[model.CorpusJob, model.ScriptImplementation]:
+    """Select a reference and its job without relying on alternative order.
+
+    Tests can unpack ``job, reference = reference_implementation`` and retain
+    the containing case metadata with the narrowed executable type.
+
+    Parameters
+    ----------
+    repository_jobs : tuple[model.CorpusJob, ...]
+        Loaded jobs containing the corpus's reference implementations.
+
+    Returns
+    -------
+    tuple[model.CorpusJob, model.ScriptImplementation]
+        The first job/reference pair; an absent reference fails the fixture.
+    """
+    for job in repository_jobs:
+        for implementation in job.alternatives:
+            match implementation:
+                case model.ScriptImplementation(kind=model.ScriptKind.REFERENCE):
+                    return job, implementation
+    pytest.fail("the corpus must contain a reference implementation")

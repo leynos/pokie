@@ -69,7 +69,8 @@ def check_domain_modules(corpus_root: pathlib.Path) -> None:
             continue  # The report module lands in EP-M2.
         assert path.exists(), f"domain module {name} must exist under corpus_root"
         source = path.read_text()
-        assert not forbidden_imports(source), name
+        forbidden = forbidden_imports(source)
+        assert not forbidden, f"{name} imports forbidden modules: {sorted(forbidden)}"
         tree = ast.parse(source)
         attributes = {
             ast.unparse(node)
@@ -79,7 +80,8 @@ def check_domain_modules(corpus_root: pathlib.Path) -> None:
         path_attributes = {
             attribute for attribute in attributes if attribute.startswith("pathlib.")
         }
-        assert path_attributes <= {"pathlib.PurePosixPath"}, name
+        disallowed = path_attributes - {"pathlib.PurePosixPath"}
+        assert not disallowed, f"{name} uses pathlib attributes: {sorted(disallowed)}"
 
 
 @pytest.mark.parametrize(

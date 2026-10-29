@@ -306,8 +306,8 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   run and do not restate a check-then-format order, so the concrete-steps block
   was the only place that contradicted itself.
 - [ ] EP-M1: domain policy, comparison, and audit with unit and property
-  tests. All deterministic gates pass after the second review repairs (144
-  tests). The next CLI review is pending.
+  tests. All deterministic gates pass after third-review repairs (144 tests).
+  Follow-up CLI review is pending.
 - [ ] EP-M2: adapters, runner, report snapshots, and unhappy scenarios.
 - [ ] EP-M3: corpus content and executable alternatives.
 - [ ] EP-M4: decision register document and register tests.
@@ -645,6 +645,12 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 
 ## Decision log
 
+- Decision (2026-10-29, EP-M1 third review): divergence findings consistently
+  use `str(script.path)` as their subject. The loader's `_corpus_path` already
+  yields paths such as `jobs/example/reference.py`, so prepending `job_id`
+  would duplicate the job component. This resolves the overlapping review
+  suggestions while retaining unambiguous, corpus-relative script identity.
+
 - Decision (2026-10-29, EP-M1 second review): the owner approved splitting
   register and evidence validation into the pure `register_policy.py` feature
   module. `policy.py` preserves the approved public API by re-exporting those
@@ -782,8 +788,8 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 
 EP-M1 supplies the pure validation and comparison core with independent
 property models, exhaustive failure/status controls, reference diagnostic
-checks, and an AST architecture test. Full-gate attempt 10 passed with 144
-tests after both review rounds' repairs. The next local milestone review is
+checks, and an AST architecture test. Full-gate attempt 11 passed with 144
+tests after the third review repairs. Follow-up local milestone review is
 pending. Later milestones still own corpus content, document adapters, reports,
 and the decision register.
 
@@ -1888,6 +1894,23 @@ milestone commit with `git revert`.
 
 ## Artefacts and notes
 
+- EP-M1 full-gate attempt 11 (2026-10-29): all required formatting, type,
+  lint, test, documentation, spelling, diagram, audit, Makefile, and coverage
+  checks passed sequentially. Tests and coverage each passed 144 tests. Audit
+  found no known vulnerabilities, retaining the documented Git-package
+  limitation. Logs: `/tmp/pokie-m1-r11-*.out`.
+
+- EP-M1 review round 3: CLI 0.9.1 completed `416b7b9..083439b`, exit 0,
+  and emitted seven findings covering five concerns
+  (`/tmp/pokie-m1-coderabbit-r3.out`). Repeated requests about retrospective
+  wording and script identity share one repair each. Boundary diagnostics now
+  include offending values; audit assertions describe each contract; shared
+  reference selection is a session fixture. A two-script control failed on
+  ambiguous divergence subjects (`/tmp/pokie-m1-review3-red.out`) before the
+  subject fix. The focused policy, comparison, audit, property, boundary, and
+  whitelist checks then passed (85 tests, `/tmp/pokie-m1-review3-green.out`).
+  Full gates and follow-up review are pending.
+
 - EP-M1 full-gate attempt 10 (2026-10-29): `make fmt`, `make check-fmt`,
   `make typecheck`, `make lint`, `make test`, `make markdownlint`,
   `make spelling`, `make nixie`, `make audit`, `make validate`, and the
@@ -1908,13 +1931,13 @@ milestone commit with `git revert`.
   audit, Makefile validation, and the coverage command, passed. Tests and
   coverage each passed 141 tests (`/tmp/pokie-m1-r9-*.out`; the completed
   standalone spelling log is `/tmp/pokie-m1-r9-spelling-2.out`). This is the
-  evidence for the first-review repair count in the retrospective.
+  record of the 141-test result for full-gate attempt 9.
 - EP-M1 review round 2: CLI 0.9.1 reviewed `416b7b9..93f2934`, completed
   with exit 0, and emitted 12 findings covering eight underlying concerns
   (`/tmp/pokie-m1-coderabbit-r2.out`). Repeated requests for parameter docs,
-  fixture independence, and divergence causes share one repair each. The
-  retrospective keeps the actual 141-test count and now links its evidence.
-  Public parameters are documented; match-based script selection and separate
+  fixture independence, and divergence causes share one repair each. The later
+  full-gate attempt 10 superseded this checkpoint with 144 tests. Public
+  parameters are documented; match-based script selection and separate
   divergence causes are implemented. Tests derive metadata and outputs from
   their inputs and construct their own observation values. Red: the combined
   divergence-defect control failed (`/tmp/pokie-m1-review2-red.out`). Green: 83

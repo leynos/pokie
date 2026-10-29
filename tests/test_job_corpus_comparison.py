@@ -52,18 +52,15 @@ def test_outcome_comparison_preserves_observable_contract(
     ],
 )
 def test_agreement_checks_both_halves_of_divergence_claim(
-    repository_jobs: tuple[model.CorpusJob, ...],
+    reference_implementation: tuple[model.CorpusJob, model.ScriptImplementation],
     agreement: findings.Agreement,
     result: str,
     *,
     declared: bool,
 ) -> None:
     """A declaration needs an observed difference; timeout supplies no evidence."""
-    case = repository_jobs[0].cases[0]
-    implementation = repository_jobs[0].alternatives[0]
-    assert isinstance(implementation, model.ScriptImplementation), (
-        "the fixture alternative must be executable"
-    )
+    job, implementation = reference_implementation
+    case = job.cases[0]
     declarations = (
         (model.Divergence(case.case_id, "different language"),) if declared else ()
     )

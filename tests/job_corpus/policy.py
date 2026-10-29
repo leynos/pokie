@@ -112,12 +112,12 @@ def _job_identity_errors(job: model.CorpusJob) -> tuple[findings.Finding, ...]:
             )
         )
     for script in scripts:
-        errors.extend(_divergence_errors(job, script, cases))
+        errors.extend(_divergence_errors(script, cases))
     return tuple(errors)
 
 
 def _divergence_errors(
-    job: model.CorpusJob, script: model.ScriptImplementation, cases: set[str]
+    script: model.ScriptImplementation, cases: set[str]
 ) -> tuple[findings.Finding, ...]:
     """Refuse unknown, repeated, or unexplained claims, such as case ``typo``.
 
@@ -137,7 +137,7 @@ def _divergence_errors(
     errors.extend(
         findings.Finding(
             findings.FindingKind.IDENTITY,
-            job.job_id,
+            str(script.path),
             f"divergence names unknown case {item.case_id}",
         )
         for item in script.divergences
@@ -146,7 +146,7 @@ def _divergence_errors(
     errors.extend(
         findings.Finding(
             findings.FindingKind.IDENTITY,
-            job.job_id,
+            str(script.path),
             f"divergence {item.case_id} has no reason",
         )
         for item in script.divergences
@@ -156,7 +156,7 @@ def _divergence_errors(
         errors.append(
             findings.Finding(
                 findings.FindingKind.IDENTITY,
-                job.job_id,
+                str(script.path),
                 "reference cannot declare divergences",
             )
         )

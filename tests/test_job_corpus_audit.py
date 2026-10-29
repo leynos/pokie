@@ -30,16 +30,14 @@ def test_audit_orders_findings_without_conflating_them_with_verdict() -> None:
     """Missing evidence is actionable even without a contract contradiction."""
     report = audit.audit_corpus((), (), (), "")
     assert report.verdict is findings.Verdict.PROCEED, (
-        "evidence defects must remain distinct from contract contradictions"
+        "an empty corpus has no contradiction and must retain the proceed verdict"
     )
     assert {error.kind for error in report.findings} == {
         findings.FindingKind.COVERAGE,
         findings.FindingKind.REGISTER,
-    }, "evidence defects must remain distinct from contract contradictions"
+    }, "an empty corpus must report only coverage and register defects"
     keys = [(error.kind, error.subject, error.message) for error in report.findings]
-    assert keys == sorted(keys), (
-        "evidence defects must remain distinct from contract contradictions"
-    )
+    assert keys == sorted(keys), "findings must be sorted by kind, subject, and message"
 
 
 @pytest.mark.parametrize(
@@ -52,18 +50,14 @@ def test_audit_orders_findings_without_conflating_them_with_verdict() -> None:
     ],
 )
 def test_reference_cannot_pass_by_crashing_with_matching_status(
-    repository_jobs: tuple[model.CorpusJob, ...],
+    reference_implementation: tuple[model.CorpusJob, model.ScriptImplementation],
     failure: model.Failure,
     stderr: bytes,
     *,
     valid: bool,
 ) -> None:
     """Reference diagnostics must name the specified failure category."""
-    job = repository_jobs[0]
-    implementation = job.alternatives[0]
-    assert isinstance(implementation, model.ScriptImplementation), (
-        "the fixture alternative must be executable"
-    )
+    job, implementation = reference_implementation
     expected = model.ExpectedOutcome(
         b"", 0 if failure is model.Failure.NONE else 1, failure
     )
@@ -71,31 +65,27 @@ def test_reference_cannot_pass_by_crashing_with_matching_status(
     observed = model.ObservedOutcome(b"", stderr, expected.exit_status)
     result = audit.verify_case(job, implementation, case, FixedRunner(observed))
     assert bool(result.findings) is not valid, (
-        "reference outcome and diagnostic checks must preserve the oracle contract"
+        "diagnostic findings must agree with the specified stderr validity"
     )
     assert result.job_id == job.job_id, (
-        "reference outcome and diagnostic checks must preserve the oracle contract"
+        "the result must retain the containing job identifier"
     )
     assert result.case_id == case.case_id, (
-        "reference outcome and diagnostic checks must preserve the oracle contract"
+        "the result must retain the input case identifier"
     )
     assert result.observed == observed, (
-        "reference outcome and diagnostic checks must preserve the oracle contract"
+        "the result must retain the exact observed outcome"
     )
     assert result.agreement is findings.Agreement.AGREED, (
-        "reference outcome and diagnostic checks must preserve the oracle contract"
+        "stdout and status agreement is separate from reference stderr validity"
     )
 
 
 def test_bad_outcome_names_expected_and_observed_bytes(
-    repository_jobs: tuple[model.CorpusJob, ...],
+    reference_implementation: tuple[model.CorpusJob, model.ScriptImplementation],
 ) -> None:
     """A failing oracle provides enough evidence to diagnose the mismatch."""
-    job = repository_jobs[0]
-    implementation = job.alternatives[0]
-    assert isinstance(implementation, model.ScriptImplementation), (
-        "the fixture alternative must be executable"
-    )
+    job, implementation = reference_implementation
     case = job.cases[0]
     observed = model.ObservedOutcome(
         case.expected.stdout + b"unexpected", b"", case.expected.exit_status
