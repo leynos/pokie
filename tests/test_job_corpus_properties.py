@@ -39,7 +39,7 @@ def test_coverage_gaps_match_model(
     expected.update(f"tag/{tag}" for tag in model.CaseTag if tag not in present_tags)
     gaps = policy.find_coverage_gaps(jobs)
     assert {gap.subject for gap in gaps} == expected, (
-        "coverage findings must match the independent finite-set model"
+        "coverage subjects must equal the model's missing category and tag set"
     )
     for category in model.JobCategory:
         category_findings = [
@@ -47,7 +47,7 @@ def test_coverage_gaps_match_model(
         ]
         if counts[category] < 2:
             assert f"found {counts[category]}" in category_findings[0].message, (
-                "coverage findings must match the independent finite-set model"
+                f"the category finding must report its actual count {counts[category]}"
             )
 
 

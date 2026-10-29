@@ -306,7 +306,7 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   run and do not restate a check-then-format order, so the concrete-steps block
   was the only place that contradicted itself.
 - [ ] EP-M1: domain policy, comparison, and audit with unit and property
-  tests. All deterministic gates pass after third-review repairs (144 tests).
+  tests. All deterministic gates pass after fourth-review repairs (148 tests).
   Follow-up CLI review is pending.
 - [ ] EP-M2: adapters, runner, report snapshots, and unhappy scenarios.
 - [ ] EP-M3: corpus content and executable alternatives.
@@ -788,8 +788,8 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 
 EP-M1 supplies the pure validation and comparison core with independent
 property models, exhaustive failure/status controls, reference diagnostic
-checks, and an AST architecture test. Full-gate attempt 11 passed with 144
-tests after the third review repairs. Follow-up local milestone review is
+checks, and an AST architecture test. Full-gate attempt 12 passed with 148
+tests after the fourth review repairs. Follow-up local milestone review is
 pending. Later milestones still own corpus content, document adapters, reports,
 and the decision register.
 
@@ -1893,6 +1893,23 @@ otherwise reports as unused. If a milestone fails midway, revert to the last
 milestone commit with `git revert`.
 
 ## Artefacts and notes
+
+- EP-M1 full-gate attempt 12 (2026-10-29): all required formatting, type,
+  lint, test, documentation, spelling, diagram, audit, Makefile, and coverage
+  checks passed sequentially. Tests and coverage each passed 148 tests. Audit
+  found no known vulnerabilities, retaining the documented Git-package
+  limitation. Logs: `/tmp/pokie-m1-r12-*.out`.
+
+- EP-M1 review round 4: CLI 0.9.1 completed `416b7b9..f888a4f`, exit 0,
+  with two test-maintenance findings (`/tmp/pokie-m1-coderabbit-r4.out`).
+  Policy assertions now name their specific conditions, and the duplicate
+  identity test synthesizes its own observation. Directly invoking that test
+  with an observation-free template failed before the repair
+  (`/tmp/pokie-m1-review4-red.out`) and passed afterwards
+  (`/tmp/pokie-m1-review4-green-control.out`). Policy and property checks
+  passed 54 tests (`/tmp/pokie-m1-review4-green.out`). Conformance controls
+  also cover zero/multiple references and evidence-only `gap` tokens. Full
+  gates and follow-up review were pending at this checkpoint.
 
 - EP-M1 full-gate attempt 11 (2026-10-29): all required formatting, type,
   lint, test, documentation, spelling, diagram, audit, Makefile, and coverage

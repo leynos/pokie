@@ -13,9 +13,9 @@ def test_empty_corpus_reports_every_coverage_obligation() -> None:
     assert {gap.subject for gap in gaps} == {
         *(f"category/{category}" for category in model.JobCategory),
         *(f"tag/{tag}" for tag in model.CaseTag),
-    }, "an empty corpus must expose every missing coverage obligation"
+    }, "an empty corpus must report every missing category and tag"
     assert all(gap.kind is findings.FindingKind.COVERAGE for gap in gaps), (
-        "an empty corpus must expose every missing coverage obligation"
+        "every empty-corpus finding must have the coverage kind"
     )
 
 
@@ -24,7 +24,12 @@ def test_identity_checks_repeated_jobs_and_case_names(
 ) -> None:
     """Repeated IDs must be diagnosed before they collapse into lookup maps."""
     job = repository_jobs[0]
-    repeated = dataclasses.replace(job, cases=(job.cases[0], job.cases[0]))
+    observation = model.Observation(
+        "OBS-99", model.ObservationKind.AMBIGUITY, (), (), "Synthetic duplicate control"
+    )
+    repeated = dataclasses.replace(
+        job, cases=(job.cases[0], job.cases[0]), observations=(observation,)
+    )
     messages = [
         error.message for error in policy.find_identity_errors((repeated, repeated))
     ]
@@ -81,26 +86,32 @@ def register_row(question: model.QuestionId) -> model.RegisterEntry:
     )
 
 
-def test_register_requires_exact_question_inventory() -> None:
+@pytest.mark.parametrize("evidence_tasks", [("1.1.1",), ("gap",)])
+def test_register_requires_exact_question_inventory(
+    evidence_tasks: tuple[str, ...],
+) -> None:
     """Q5 cannot disappear or occur twice, and unknown Q9 is rejected."""
-    rows = tuple(register_row(question) for question in model.QuestionId)
+    rows = tuple(
+        dataclasses.replace(register_row(question), evidence_tasks=evidence_tasks)
+        for question in model.QuestionId
+    )
     tasks = ("1.1.1", "1.1.2")
     assert not policy.find_register_gaps(rows, tasks), (
-        "the register must contain exactly one row per known question"
+        "the complete unique question inventory must be accepted"
     )
     assert any(
         error.subject == "Q5"
         for error in policy.find_register_gaps(rows[:4] + rows[5:], tasks)
-    ), "the register must contain exactly one row per known question"
+    ), "missing Q5 must be reported"
     assert any(
         error.message == "duplicate question"
         for error in policy.find_register_gaps((*rows, rows[4]), tasks)
-    ), "the register must contain exactly one row per known question"
+    ), "duplicate Q5 must be reported"
     unknown = dataclasses.replace(rows[0], question=typ.cast("model.QuestionId", "Q9"))
     assert any(
         error.message == "unknown question"
         for error in policy.find_register_gaps((unknown,), tasks)
-    ), "the register must contain exactly one row per known question"
+    ), "unknown Q9 must be reported"
 
 
 @pytest.mark.parametrize("owner", ["", " ", "TBD", "unassigned", "-"])
@@ -119,6 +130,7 @@ def test_register_rejects_placeholder_owners(owner: str) -> None:
         ({"evidence_tasks": ("9.9.9",)}, "unknown task 9.9.9"),
         ({"decide_before": "1.1.3"}, "decision deadline follows a gate"),
         ({"gates": ("gap",)}, "gap is allowed only in evidence tasks"),
+        ({"decide_before": "gap"}, "gap is allowed only in evidence tasks"),
         ({"evidence_tasks": ()}, "evidence tasks are empty"),
         ({"gates": ()}, "gates are empty"),
     ],
@@ -178,13 +190,13 @@ def test_observations_are_documented_and_belong_to_job_questions(
         job, decisions=(model.QuestionId.Q1,), observations=(observation,)
     )
     assert policy.find_evidence_mismatches((job,), ()), (
-        "observation identifiers and questions must preserve exact trace links"
+        "an observation outside its job decisions must be reported"
     )
     assert not policy.find_undocumented_observations((job,), "OBS-99"), (
-        "observation identifiers and questions must preserve exact trace links"
+        "the exact observation identifier must count as documented"
     )
     assert policy.find_undocumented_observations((job,), "OBS-990"), (
-        "observation identifiers and questions must preserve exact trace links"
+        "a longer identifier must not document the shorter observation"
     )
 
 
@@ -250,3 +262,17 @@ def test_empty_question_evidence_is_explicitly_representable(
     assert not policy.find_evidence_mismatches(jobs, (row,)), (
         "none and an empty inventory must represent exactly zero bearing jobs"
     )
+
+
+@pytest.mark.parametrize("reference_count", [0, 2])
+def test_job_requires_exactly_one_reference(
+    reference_implementation: tuple[model.CorpusJob, model.ScriptImplementation],
+    reference_count: int,
+) -> None:
+    """An absent or ambiguous oracle cannot supply a job's evidence."""
+    job, reference = reference_implementation
+    job = dataclasses.replace(job, alternatives=(reference,) * reference_count)
+    errors = policy.find_identity_errors((job,))
+    assert [error.message for error in errors] == [
+        "expected exactly one reference implementation"
+    ], "zero and multiple reference implementations must each be rejected"
