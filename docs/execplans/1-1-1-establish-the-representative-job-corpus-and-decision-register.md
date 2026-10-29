@@ -5,7 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections `Constraints`,
 `Outcomes & retrospective`, `Conformance basis`, and `Verification plan` must
 be kept up to date as work proceeds.
 
-Status: DRAFT
+Status: APPROVED
 
 Roadmap item: `docs/roadmap.md` task 1.1.1, "Establish the representative job
 corpus and decision register".
@@ -207,8 +207,8 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   contracts, testing, operations, product) and revision.
 - [x] (2026-10-15) Firecrawl re-verification of POSIX awk, the CI runner
   image, pytest-bdd, and syrupy after credits were restored.
-- [ ] Plan approved by the project owner, including owner assignments and
-  interim defaults.
+- [x] (2026-10-29) Plan approved by the project owner, including owner
+  assignments and interim defaults.
 - [x] (2026-10-15) EP-M0: toolchain proof on realistic code. The domain types,
   the first job (`validate-user-records`) with its oracle and awk alternative,
   the runner, the parameterized tests, and the first scenario all exist and
