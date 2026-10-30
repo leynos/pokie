@@ -154,7 +154,9 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   Severity: medium. Likelihood: medium. Mitigation: unit tests reach every
   harness branch (each `EvidenceFormatError` key, timeout, missing script, awk
   absent via constructor argument); EP-M0, EP-M2, and EP-M3 run the CI coverage
-  command locally.
+  command locally. The baseline was re-based to this branch's measured coverage
+  through a versioned baseline path on 2026-10-30, so the scaffold-era 98.88%
+  archive no longer governs the harness.
 - Risk: the strict lint stack (Ruff preview, Interrogate 100%, Pylint on PyPy
   3.12, Skylos, Vulture at 60% confidence, nose duplication with
   `min-size = 24`, `ty`) rejects step functions, unread model fields, or
@@ -317,8 +319,32 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 - [ ] EP-M4: decision register document and register tests.
 - [ ] EP-M5: documentation, ADR 0004, Phase 1 findings, and roadmap
   completion.
+- [x] (2026-10-30) Coverage baseline bootstrap: the owner asked to remove the
+  unrealistic ratchet before further milestones land. The committed
+  `.coverage-baseline-v2.python` holds `98.07`, measured on this branch as
+  2282/2327 first-party lines (98.0662%) with 195 passing tests; `ci.yml` and
+  `coverage-main.yml` both name it, and new contract tests pin the shared path,
+  the single ratchet step, and the file's one-percentage-line format. Naming a
+  new path also resets the action's baseline cache version, so the stale 98.88%
+  archive is not restored.
 
 ## Surprises & discoveries
+
+- Observation (2026-10-30, coverage baseline bootstrap): the stored baseline
+  is not visible in the repository. The 98.88% figure lives only in the
+  action's cache archive, seeded by run 38051324846 when `main` was a
+  near-empty scaffold. Because the action keys the cache version by the
+  configured baseline paths, the committed value is consulted only when the
+  path changes; editing a committed file at the same path would have left the
+  cached figure authoritative. The versioned-path convention therefore carries
+  the reset, and the contract test's retired-path assertion stops a future
+  workflow from silently restoring the old archive. The hosted artefact from
+  run 40975626864 (head `d2542aa`) confirms the scale: its `coverage.xml`
+  contains exactly the 32 first-party classes at 2245/2290 lines (98.0349%). A
+  local `uv run --with slipcover` run additionally reports an existing project
+  `.venv`, whose 73182 lines swamp the ratio at 49.8947%; the action's own
+  `.venv-coverage` is absent from its report. Filter to first-party classes
+  when reproducing the ratchet figure locally.
 
 - Observation (2026-10-30, EP-M1 coverage repair): a successful SlipCover
   command does not prove the CI ratchet. Filtering its JSON to the same
@@ -673,6 +699,16 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 
 ## Decision log
 
+- Decision (2026-10-30, coverage baseline bootstrap): re-base the Python
+  coverage ratchet to this branch's measured coverage instead of holding the
+  scaffold-era 98.88%. The owner requested this explicitly: the old baseline
+  was measured on a near-empty `main`, so it never described the harness, and
+  the ratchet never lowers itself. This is a baseline re-base through the
+  shared action's supported cache-reset path (a new versioned baseline path),
+  not a tolerance change: `RATCHET_TOLERANCE_PP` stays at 1.0, no coverage
+  setting changed, and the harness branch coverage was repaired first. The new
+  figure is the achieved measurement, not a relaxation that hides gaps.
+
 - Decision (2026-10-30, EP-M1 coverage repair): preserve the coverage baseline
   and include every first-party Python file. Precompute assertion diagnostic
   strings without changing their predicates, so passing tests execute the
@@ -842,6 +878,13 @@ tests and measures 2245/2290 project lines (98.0349%), above the unchanged
 97.88% floor. Local milestone review remains pending. Later milestones still
 own corpus content, remaining document adapters and scenarios, reports, and the
 decision register.
+
+The ratchet baseline is now bootstrapped from this branch: the committed
+`.coverage-baseline-v2.python` holds `98.07`, replacing a scaffold-era 98.88%
+figure that lived only in the shared action's cache, and both ratchet workflows
+name it. The value matches the branch measurement of 2282/2327 first-party
+lines (98.0662%) with 195 passing tests. This does not accept EP-M1; the
+milestone still needs its pending local review.
 
 ## Context and orientation
 
