@@ -327,6 +327,18 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   the single ratchet step, and the file's one-percentage-line format. Naming a
   new path also resets the action's baseline cache version, so the stale 98.88%
   archive is not restored.
+- [x] (2026-10-31) Local CodeRabbit CLI review of the committed milestone range
+  `ccbf8841..4c2b54b` (CLI 0.9.2, 46 reviewed files, completed). Two docstyle
+  findings, both fixed: the ExecPlan was missing from `docs/contents.md`, and
+  the developer guide used "users' guide" where the style guide names the
+  "user's guide".
+- [x] (2026-10-31) Rebased onto `main` `f4f4278` (three upstream commits).
+  Conflicts in `ci.yml`, `coverage-main.yml`, and `uv.lock` resolved by keeping
+  `main`'s newer pins and workflow shape and adding only
+  `baseline-python-file`. The rebase dropped the CodeScene helper integration
+  test together with the helper that `main` deleted. Full suite after the
+  rebase: 194 tests; first-party coverage 2249/2294 lines (98.0384%),
+  re-baselined to `98.04`.
 
 ## Surprises & discoveries
 
@@ -697,6 +709,19 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   reading a sequence should ask what each step does to the tree rather than
   only whether the target passes.
 
+- Observation (2026-10-31, rebase onto `main`): `main` had advanced to
+  `f4f4278` and had repinned the shared coverage action from `18bed1ca` to
+  `5a99aed7`. The new revision still accepts `baseline-python-file`, still
+  hashes the configured baseline paths into the cache version, and adds the
+  Python major.minor to the key (`ratchet-baseline-<os>-py<major.minor>-...`),
+  so the bootstrap reset still works. `main` also deleted
+  `.github/scripts/update_codescene_sha.js` and its Node integration test, so
+  the rebase drops that test; the merge otherwise keeps both sides' additions to
+  `tests/test_workflow_contracts.py`. The reviewed tree and the merged tree
+  therefore differ only in documentation, workflow pins, and that deleted test,
+  and the first-party coverage figure moved from 2245/2290 to 2249/2294 lines
+  (98.0384%) because the removed test was fully covered.
+
 ## Decision log
 
 - Decision (2026-10-30, coverage baseline bootstrap): re-base the Python
@@ -864,6 +889,18 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   check is unchanged, so the diagnostic a malformed file produces still names
   the file and the `schema` key. Date/Author: 2026-10-16, implementation agent
   after CodeRabbit review round 5.
+- Decision: on the 2026-10-31 rebase, adopt `main`'s newer dependency pins
+  (`filelock` 4.2.5 and the `certifi` bump) and workflow shape
+  (`generate-coverage` at `5a99aed7`, `UV_PYTHON: '3.14'`,
+  `publish-artefact: 'false'`, and the CV-005 contract step) rather than
+  replaying the branch's superseded bumps, and add only `baseline-python-file`
+  to both ratchet steps. Rationale: the branch's security bumps are subsumed by
+  `main`, and the CV-005 check compares the two coverage selections field for
+  field, so both workflows must carry the same inputs. The baseline reset is
+  unaffected because the new action revision still keys its cache version on
+  the configured baseline paths. The reduced test count is the CodeScene helper
+  test that `main` deleted with the helper; no corpus test was removed.
+  Date/Author: 2026-10-31, implementation agent after the integration rebase.
 
 ## Outcomes & retrospective
 

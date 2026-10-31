@@ -102,7 +102,7 @@ jobs:
           format: cobertura
           artefact-name-suffix: pokie
           with-ratchet: 'true'
-publish-artefact: 'false'
+          publish-artefact: 'false'
           # The default path's cache entry was seeded from the near-empty
           # scaffold at 98.88%, which the job-corpus harness cannot reach now
           # that it carries test-only code. The cache version hashes the

@@ -238,16 +238,16 @@ show these diagnostics alongside passing jobs:
   JavaScript actions and their dependencies. Keep the warning visible rather
   than filtering it broadly.
 - The pinned
-  [shared coverage action](https://github.com/leynos/shared-actions/blob/18bed1ca49a6de3d8882bd72635a32ae3f023d57/.github/actions/generate-coverage/action.yml#L220)
+  [shared coverage action](https://github.com/leynos/shared-actions/blob/5a99aed78ce68dcebd3052b75c31e6f173162b1e/.github/actions/generate-coverage/action.yml#L345)
   caches `~/.cache/uv`, while setup-uv supplies a different effective
   `UV_CACHE_DIR`. That mismatch can omit the cache. Its restore and post-job
   save also reserve the same key; an explicit save can succeed before the
   post-job reservation warning. Both are cache issues owned by
   `leynos/shared-actions`. They affect caching, not the coverage ratchet
   result; see the action's
-  [restore](https://github.com/leynos/shared-actions/blob/18bed1ca49a6de3d8882bd72635a32ae3f023d57/.github/actions/generate-coverage/action.yml#L88)
+  [restore](https://github.com/leynos/shared-actions/blob/5a99aed78ce68dcebd3052b75c31e6f173162b1e/.github/actions/generate-coverage/action.yml#L246)
   and
-  [save](https://github.com/leynos/shared-actions/blob/18bed1ca49a6de3d8882bd72635a32ae3f023d57/.github/actions/generate-coverage/action.yml#L275)
+  [save](https://github.com/leynos/shared-actions/blob/5a99aed78ce68dcebd3052b75c31e6f173162b1e/.github/actions/generate-coverage/action.yml#L450)
   steps.
 - Act may not resolve GitHub's synthetic pull-request merge commit to a branch
   or tag because checkout leaves it detached. Identify the tested candidate

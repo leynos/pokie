@@ -3,8 +3,8 @@
 import re
 import typing as typ
 from pathlib import Path
-import pytest
 
+import pytest
 import yaml
 
 REPOSITORY = Path(__file__).parents[1]
