@@ -47,9 +47,8 @@ def _awk_banner(executable: str) -> str:
 
     mawk and gawk answer ``-W version``, and ``--version`` covers the awks that
     only implement the long form. BusyBox-style awks answer on standard error,
-    so both streams are read; a probe that cannot run or exits non-zero is
-    skipped, because the banner is reported for traceability and must not fail
-    collection.
+    so both streams are read; standard input is closed so an awk that treats
+    ``version`` as program text cannot block, and a failed probe is skipped.
 
     Returns
     -------
@@ -61,6 +60,7 @@ def _awk_banner(executable: str) -> str:
             completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - resolved executable and literal arguments, no shell.
                 [executable, *arguments],
                 capture_output=True,
+                stdin=subprocess.DEVNULL,
                 text=True,
                 timeout=10,
                 check=False,

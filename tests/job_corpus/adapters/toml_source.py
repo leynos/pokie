@@ -1,8 +1,8 @@
 """Refuse carriage returns that a multiline TOML string would hide.
 
-`tomllib` normalizes physical CRLF to LF inside multiline strings, so a
-carriage return authored there never reaches the decoded value. This scan reads
-raw source before parsing and holds ``text`` to the ``hex`` requirement.
+`tomllib` normalizes CRLF to LF inside multiline strings, so a carriage return
+authored there never reaches the decoded value. This scan reads raw source,
+before parsing, and holds ``text`` to the ``hex`` requirement.
 """
 
 import tomllib
@@ -16,7 +16,7 @@ if typ.TYPE_CHECKING:
 
 _BARE_KEY = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
 _SPACE = " \t\r\n"
-_CONTENT_QUOTES = 2
+_CONTENT_QUOTES = 2  # TOML lets 1-2 quotes before the delimiter be content.
 _MESSAGE = "carriage returns need the 'hex' encoding"
 
 
@@ -71,7 +71,7 @@ def _multiline_spans(document_text: str) -> cabc.Iterator[tuple[int, int]]:
 def _literal_end(document_text: str, start: int) -> int:
     """Return the index just past the literal opening at ``start``.
 
-    Basic strings honour backslash escapes and literals have none. An
+    Basic strings honour backslash escapes and literals have none; an
     unterminated literal ends at the document's end, for `tomllib` to report.
 
     Returns
@@ -99,8 +99,6 @@ def _literal_end(document_text: str, start: int) -> int:
 def _closing_end(document_text: str, start: int) -> int:
     """Return the index just past a closing delimiter and its content quotes.
 
-    TOML lets up to two quotes before the delimiter belong to the content.
-
     Returns
     -------
     int
@@ -117,8 +115,7 @@ def _closing_end(document_text: str, start: int) -> int:
 def _names_text(document_text: str, start: int) -> bool:
     """Return whether the literal at ``start`` is assigned to the key ``text``.
 
-    A quoted basic-string key decodes escapes, so one spelling ``text`` with an
-    escaped ``t`` also names it; raw-source comparison would miss that.
+    A quoted basic-string key decodes escapes, so an escaped ``t`` names it too.
 
     Returns
     -------

@@ -401,6 +401,29 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   `tests/job_corpus/jobs/`: 26 Python files and 4,798 net Python lines, 44
   files overall, against limits of 45 and 4,800. CodeScene keeps both touched
   files at 10.00 and `cs delta origin/main` is clean.
+- [x] (2026-10-31) CodeRabbit's automatic review of `d86f8a7` (review
+  5724115300) posted three actionable findings, all verified against source and
+  all repaired here:
+  - the awk version probe inherited standard input, so an awk that treats
+    `version` as program text could block until the ten-second timeout; the
+    probe now passes `stdin=subprocess.DEVNULL`.
+  - `load_jobs` caught only `OSError`, so invalid UTF-8 escaped as a raw
+    `UnicodeDecodeError` without the corpus-relative path; it now reports both
+    `OSError` and `UnicodeDecodeError` as `EvidenceFormatError`, and the
+    read-error test is parametrized over a directory and over `b"\xff"`.
+  - the isolated mutation tree did not receive the committed coverage baseline,
+    so the workflow-contract check would raise `FileNotFoundError` there;
+    `[tool.mutmut] also_copy` now carries `.coverage-baseline-v2.python`,
+    documented in the developer guide.
+
+  A fourth, unverified nitpick in `docs/pokie-design.md` was answered rather
+  than applied. Pairing a link with its repo-relative path in backticks is the
+  existing convention in `docs/roadmap.md`, `docs/developers-guide.md`, and
+  `docs/terms-of-reference.md`, all unchanged from `main`, and this branch only
+  renamed the three ADR targets. Final measurement outside
+  `tests/job_corpus/jobs/`: 26 Python files and 4,800 net Python lines, 44
+  files overall, against limits of 45 and 4,800; the repairs were compacted
+  into the branch rather than raising the limit.
 
 ## Surprises & discoveries
 

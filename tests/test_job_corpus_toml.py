@@ -1,11 +1,10 @@
 """Loader tests for the `job.toml` schema.
 
-Obligation LEM-LOAD-1 in the ExecPlan owns this module. The tests here pin the
-loader's strictness where a value of the wrong type could otherwise pass as the
-right one. ``schema`` is compared against an integer constant, and Python makes
-``True == 1`` and ``1.0 == 1``, so a version written as a boolean or a float
-would otherwise load as version 1 — a malformed corpus file accepted in
-silence, which is the failure the loader exists to prevent.
+Obligation LEM-LOAD-1 in the ExecPlan owns this module. The tests pin the
+loader's strictness where a wrong-typed value could pass as the right one:
+``schema`` is compared against an integer constant, and Python makes
+``True == 1`` and ``1.0 == 1``, so a boolean or float version would otherwise
+load as version 1 — a malformed file accepted in silence.
 """
 
 import pathlib
@@ -17,8 +16,7 @@ from job_corpus.adapters import toml_jobs, toml_source
 RELATIVE = pathlib.PurePosixPath("jobs/sample-job/job.toml")
 """Where the sample document sits relative to the corpus root.
 
-The loader reads the job's identifier out of this path as well as out of the
-document, so a temporary copy has to keep the same directory name.
+The loader also reads the job identifier from this directory name.
 """
 
 DOCUMENT = """\
@@ -164,9 +162,17 @@ def test_input_encodings_preserve_exact_bytes(encoding: str, expected: bytes) ->
     assert job.cases[0].inputs[0].content == expected, why
 
 
-def test_a_job_document_that_cannot_be_read_is_reported(tmp_path: pathlib.Path) -> None:
-    """A directory in place of job.toml produces a deterministic read error."""
-    (tmp_path / RELATIVE).mkdir(parents=True)
+@pytest.mark.parametrize("payload", [None, b"\xff"])
+def test_a_job_document_that_cannot_be_read_is_reported(
+    tmp_path: pathlib.Path, payload: bytes | None
+) -> None:
+    """A directory or undecodable bytes in place of job.toml is a read error."""
+    document = tmp_path / RELATIVE
+    document.parent.mkdir(parents=True)
+    if payload is None:
+        document.mkdir()
+    else:
+        document.write_bytes(payload)
     with pytest.raises(
         ports.EvidenceFormatError, match="cannot read job file"
     ) as raised:
@@ -200,8 +206,7 @@ _REFUSED = [
 ]
 """Spellings the loader must refuse: a ``text`` string holding a physical CR.
 
-The literals and keys before the later cases also prove that an earlier
-spelling, escape included, does not misalign the scan.
+An earlier literal or key, escape included, must not misalign the scan.
 """
 
 _ACCEPTED = [

@@ -74,9 +74,9 @@ Makefile, development dependencies, and Continuous Integration (CI). Bump
 either deliberately and update all locations together, then resolve any new
 diagnostics in the same change.
 
-Mutation runs copy `scripts/`, `.github/`, `Makefile`, and `pyproject.toml`
-through `[tool.mutmut] also_copy` so the tooling-contract tests retain their
-inputs in the isolated mutation tree.
+Mutation runs copy `scripts/`, `.github/`, `Makefile`, `pyproject.toml`,
+`docs/`, and the committed coverage baseline through `[tool.mutmut] also_copy`
+so the tooling-contract tests retain their inputs in the isolated mutation tree.
 
 `make check-fmt` checks Python formatting with Ruff and Markdown formatting with
 `mdtablefix` v0.6.1. CI installs that formatter through the shared

@@ -341,9 +341,17 @@ min_confidence = 60
 # caller guide (docs/mutation-mutmut-workflow.md).
 #
 # The corpus harness reads docs/decision-register.md, so the documentation
-# tree travels with the copied checkout.
+# tree travels with the copied checkout. The workflow-contract check reads the
+# committed coverage baseline, so that file travels too.
 source_paths = ["pokie/"]
-also_copy = ["scripts/", ".github/", "Makefile", "pyproject.toml", "docs/"]
+also_copy = [
+  "scripts/",
+  ".github/",
+  "Makefile",
+  "pyproject.toml",
+  "docs/",
+  ".coverage-baseline-v2.python",
+]
 pytest_add_cli_args_test_selection = ["tests/"]
 
 [tool.pytest.ini_options]

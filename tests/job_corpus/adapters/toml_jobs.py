@@ -393,7 +393,7 @@ def load_jobs(corpus_root: pathlib.Path) -> tuple[model.CorpusJob, ...]:
         )
         try:
             text = document_path.read_text(encoding="utf-8", newline="")
-        except OSError as error:
+        except (OSError, UnicodeDecodeError) as error:
             message = f"cannot read job file: {error}"
             raise EvidenceFormatError(message, path=relative, key="") from error
         loaded.append(load_job(text, relative))
