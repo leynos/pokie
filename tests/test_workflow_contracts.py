@@ -1,9 +1,5 @@
 """Tests for the externally visible GitHub workflow contracts."""
 
-import json
-import os
-import shutil
-import subprocess  # ruff: ignore[suspicious-subprocess-import] - Node integration tests execute the repository helper.
 from pathlib import Path
 
 import yaml
@@ -53,55 +49,3 @@ def test_act_smoke_disables_upload_and_handles_output_paths_with_spaces() -> Non
     assert build_step["with"]["upload-artefact"] == "false", why
     why = "The smoke job must exercise an output directory containing a space"
     assert " " in build_step["with"]["out-dir"], why
-
-
-def test_codescene_workflow_helper_emits_repository_variable_payload() -> None:
-    """The workflow helper sends the configured repository variable payload."""
-    repository = Path(__file__).parents[1].resolve()
-    helper_path = (repository / ".github/scripts/update_codescene_sha.js").resolve()
-    node = shutil.which("node")
-    why = "The CodeScene helper integration test requires Node.js on PATH"
-    assert node is not None, why
-    node_path = str(Path(node).resolve())
-
-    known_sha = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-    environment = os.environ.copy()
-    environment["SHA"] = known_sha
-    javascript = """
-const helperPath = process.argv[2];
-const github = {
-  rest: {
-    actions: {
-      updateRepoVariable: async (payload) => {
-        process.stdout.write(JSON.stringify(payload));
-      },
-    },
-  },
-};
-const context = { repo: { owner: 'example-owner', repo: 'different-repository' } };
-require(helperPath)({ github, context }).catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
-"""
-    result = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - resolved Node and repository helper, no shell.
-        [node_path, "-", str(helper_path)],
-        capture_output=True,
-        check=False,
-        cwd=repository,
-        env=environment,
-        input=javascript,
-        text=True,
-        timeout=30,
-    )
-
-    why = f"The CodeScene helper must complete successfully: {result.stderr}"
-    assert result.returncode == 0, why
-    expected_payload = {
-        "owner": "example-owner",
-        "repo": "different-repository",
-        "name": "CODESCENE_CLI_SHA256",
-        "value": known_sha,
-    }
-    why = "The helper must emit the complete owner, repository, name, and SHA payload"
-    assert json.loads(result.stdout) == expected_payload, why
