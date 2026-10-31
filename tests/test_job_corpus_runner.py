@@ -15,6 +15,8 @@ when the record arrived, ``0 0`` when it did not.
 
 import dataclasses
 import pathlib
+import subprocess  # ruff: ignore[suspicious-subprocess-import] - the probe tests need its result and error types, not a child process.
+from unittest import mock
 
 import conftest
 import pytest
@@ -309,19 +311,88 @@ def test_command_boundaries_and_timeouts_are_observable(
         )
 
 
-def test_the_awk_report_survives_an_unrunnable_awk(
+def completed(stdout: str, returncode: int) -> subprocess.CompletedProcess[str]:
+    """Return the answer a real awk would have given to one probe spelling.
+
+    Returns
+    -------
+    subprocess.CompletedProcess[str]
+        A finished probe carrying ``stdout`` and no standard error.
+    """
+    return subprocess.CompletedProcess([], returncode, stdout, "")
+
+
+_PROBE_ANSWERS = [
+    pytest.param([completed("mawk 1.3.4\n", 0)], "mawk 1.3.4", id="first-spelling"),
+    pytest.param(
+        [completed("", 2), completed("gawk 5.3\n", 0)], "gawk 5.3", id="fallback"
+    ),
+    pytest.param([completed(" \n", 0), completed("", 1)], "", id="no-banner"),
+    pytest.param([completed("x\n", 3), completed("y\n", 4)], "", id="non-zero-status"),
+    pytest.param([subprocess.TimeoutExpired("awk", 10)] * 2, "", id="timeout"),
+    pytest.param([FileNotFoundError("awk")] * 2, "", id="missing-executable"),
+]
+"""Each spelling's answer, and the banner the probe must report for it."""
+
+
+@pytest.mark.parametrize(("answers", "expected"), _PROBE_ANSWERS)
+def test_the_probe_reports_what_each_awk_spelling_answers(
+    answers: list[subprocess.CompletedProcess[str] | Exception], expected: str
+) -> None:
+    """Both spellings are tried, and every failure becomes no banner at all."""
+    launcher = mock.Mock(side_effect=answers)
+
+    assert process_runner.awk_version("/usr/bin/awk", run=launcher) == expected, (
+        f"the probe must report {expected!r} for these answers"
+    )
+    calls = launcher.call_args_list
+    why = f"the probe must stay one isolated, bounded child: {calls}"
+    assert len(calls) == len(answers), why
+    for call in calls:
+        command, options = call.args[0], call.kwargs
+        assert command[0] == "/usr/bin/awk", why
+        assert options["stdin"] is subprocess.DEVNULL, why
+        assert options["timeout"] == 10, why
+        environment = options["env"]
+        assert isinstance(environment, dict), why
+        assert set(environment) == {"PATH", "LC_ALL"}, why
+
+
+def test_collection_probes_only_the_resolved_executable() -> None:
+    """The pin wins over ``PATH``, and an absent awk is never probed."""
+    probe = mock.Mock(return_value="mawk 1.3.4")
+    pinned = conftest.collect_awk_facts(
+        environ={"JOB_CORPUS_AWK": "/opt/awk"},
+        which=lambda _: pytest.fail("a pinned executable must not consult PATH"),
+        probe=probe,
+    )
+    assert pinned == conftest.AwkFacts("/opt/awk", "mawk 1.3.4", named=True), pinned
+    absent = conftest.collect_awk_facts(
+        environ={}, which=lambda _: None, probe=lambda _: pytest.fail("no awk")
+    )
+    assert absent == conftest.AwkFacts(None, "", named=False), absent
+    why = "only the resolved executable may be probed"
+    assert probe.call_args_list == [mock.call("/opt/awk")], why
+
+
+def test_rendering_formats_stored_facts_without_discovering(
     request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The header must still report a pinned awk that cannot be executed."""
-    monkeypatch.setenv("JOB_CORPUS_AWK", "/nonexistent/awk")
-    header = conftest.pytest_report_header(request.config)
-    assert "(version unknown) [JOB_CORPUS_AWK]" in header, header
-
-
-def test_the_header_line_reports_exactly_what_the_probe_found() -> None:
-    """A returned banner is reported; a missing executable and banner are said."""
-    found = conftest.report_header_line("/usr/bin/mawk", "mawk 1.3.4", named=False)
-    assert found == "job corpus awk: /usr/bin/mawk (mawk 1.3.4)", found
-    assert conftest.report_header_line(None, "", named=False) == (
+    """The header must format the stored facts, never discover or probe again."""
+    refuse = mock.Mock(
+        side_effect=AssertionError("rendering must not discover, probe, or run")
+    )
+    monkeypatch.setattr(conftest, "collect_awk_facts", refuse)
+    monkeypatch.setattr(process_runner, "awk_version", refuse)
+    stored = request.config.stash[conftest.AWK_FACTS_KEY]
+    assert conftest.pytest_report_header(request.config) == (
+        conftest.report_header_line(stored)
+    ), "the header must format the facts configure stored"
+    pinned = conftest.AwkFacts("/usr/bin/mawk", "mawk 1.3.4", named=True)
+    assert conftest.report_header_line(pinned) == (
+        "job corpus awk: /usr/bin/mawk (mawk 1.3.4) [JOB_CORPUS_AWK]"
+    ), "a named executable must be reported as named"
+    missing = conftest.AwkFacts(None, "", named=False)
+    assert conftest.report_header_line(missing) == (
         "job corpus awk: no awk (version unknown)"
     ), "a missing awk must be named, not shown as a version"

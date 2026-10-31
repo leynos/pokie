@@ -17,7 +17,12 @@ Entries are *removed* as consuming code lands, never added speculatively:
 `tests/test_job_corpus_dead_code.py` fails when Vulture no longer reports one.
 """
 
+import conftest
+
 from job_corpus import model
+
+# pytest calls this hook by name, so no Python expression ever mentions it.
+_ = (conftest.pytest_configure,)
 
 # Failure categories other than `NONE`, which the oracle tests name directly.
 _ = (
@@ -52,26 +57,16 @@ _ = (
 # vocabulary that decides the phase 1 verdict.
 _ = (
     model.QuestionId.Q2,
-    model.QuestionId.Q3,
     model.QuestionId.Q4,
     model.QuestionId.Q5,
     model.QuestionId.Q7,
     model.ObservationKind.HOST_DIVERGENCE,
     model.EvidenceStatus.ESTABLISHED,
     model.EvidenceStatus.AGREED_BASIS,
-    model.EvidenceStatus.ASSUMPTION,
     model.EvidenceStatus.PROPOSED_CONTRACT,
     model.EvidenceStatus.OPEN_QUESTION,
     model.EvidenceStatus.DEFERRED,
 )
 
-# Read by the policy and report modules of EP-M1 and EP-M2.
-_ = (
-    model.JobCase.earliest_task,
-    model.Observation.summary,
-    model.CorpusJob.title,
-    model.CorpusJob.goals,
-    model.CorpusJob.evidence_status,
-    model.CorpusJob.provenance,
-    model.CorpusJob.program,
-)
+# Read by the report checks of EP-M2.
+_ = (model.Observation.summary,)

@@ -134,36 +134,55 @@ corpus yielding no cases is a collection error, not a silently skipped
 obligation.
 
 `model.py` and the pure policy modules hold frozen values and decisions and may
-not import an adapter. `ports.py` declares `ProgramRunner` and
-`EvidenceFormatError`. `comparison.py` and `audit.py` compose loaded values:
-`audit_corpus` takes jobs, register rows, task identifiers, and findings text,
-and returns an `AuditReport`. Everything that parses a document or starts a
-program lives in `tests/job_corpus/adapters/`: `toml_source.py` reads a file
-and rejects a carriage return that `tomllib` would normalize away,
-`toml_values.py` and `toml_jobs.py` walk the schema, and `process_runner.py`
-materializes inputs and runs a child.
+not import an adapter. `ports.py` declares the single port, `ProgramRunner`,
+whose `run(implementation, case)` returns an `ObservedOutcome` and never
+decides correctness, plus `EvidenceFormatError`. Everything that parses a
+document or starts a program lives in `tests/job_corpus/adapters/`:
+`toml_source.py` scans supplied text for a carriage return that `tomllib` would
+normalize away, `toml_values.py` and `toml_jobs.py` walk the schema, and
+`process_runner.py` materializes inputs and runs a child.
+
+`toml_jobs.load_job(document_text, relative)` decodes one document supplied as
+text; `toml_jobs.load_jobs(corpus_root)` is the only function that reads files,
+globbing `jobs/<job-id>/job.toml` with `newline=""` so the source scan still
+sees a carriage return.
+
+`comparison.compare_outcome` answers whether stdout and exit status agree under
+a `Comparison`; `comparison.evaluate_agreement` classifies a case against its
+divergence declarations, and reports a declared divergence that now agrees as
+stale. `audit.verify_case(job, implementation, case, runner)` runs one case
+through the port and keeps the observation, the classification, and any
+reference diagnostic.
+`audit.audit_corpus(jobs, register, task_ids, findings_text)` takes loaded
+values only and returns an `AuditReport` of ordered findings with a separate
+contract verdict.
 
 Every loader failure is an `EvidenceFormatError` carrying the corpus-relative
-path and the dotted TOML key, so a message locates the defect without a
-traceback. `schema` is compared against an integer constant: Python makes
-`True == 1` and `1.0 == 1`, so a boolean or float version is refused rather
-than read as version 1.
+path and the dotted TOML key, rendered as `<path>: <key>: <message>`. A defect
+in the document as a whole, such as invalid TOML or an unknown root key, keeps
+the empty key position, so it reads `job.toml: : invalid TOML: …`. `schema` is
+version 1 and is compared against an integer constant: Python makes `True == 1`
+and `1.0 == 1`, so a boolean or float version is refused rather than read as
+version 1.
 
 `ProcessRunner` always passes an argument list, never a shell, and gives each
 child an explicit environment allowlist: a reference runs under
 `sys.executable -I`, and the awk and shell alternatives under `LC_ALL=C`.
 Standard input is supplied explicitly, and each run has a ten-second default
 timeout that is reported as a timed-out observation rather than raised.
-`awk_version` probes `-W version` and then `--version`, and shares
-`ProcessRunner`'s role as one of only two places in the harness that start
-another program.
+`awk_version` probes `-W version` and then `--version` with standard input
+closed, a ten-second timeout, and the same `PATH`/`LC_ALL` allowlist; a probe
+that fails, times out, or prints nothing yields no banner rather than raising.
+It accepts an injectable launcher, so every outcome is testable without a host
+awk. These two are the only places in the harness that start another program.
 
 `JOB_CORPUS_AWK` pins the awk the corpus executes; without it the first `awk` on
-`PATH` is used, and with neither, awk cases fail as unsupported instead of
-being skipped. The pytest report header names the executable and the version
-`process_runner.awk_version` reported, or says that neither was found; the
-formatting is a pure function, so the header can be tested without running
-anything.
+`PATH` is used. With neither, the alternative tests skip locally and fail when
+`CI` is set, so a hosted run cannot quietly lose its awk coverage.
+`tests/conftest.py` resolves and probes the awk once in `pytest_configure`,
+stores the executable, banner, and pin status in the session stash, and the
+report header formats those stored facts: discovery and the probe have a narrow
+injectable seam, and rendering runs nothing.
 
 ## Automation scripts
 

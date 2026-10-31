@@ -9,11 +9,15 @@ deadline; `ci` also derandomizes, making a failure reproducible from its seed.
 import os
 import pathlib
 import shutil
+import typing as typ
 
 import hypothesis
 import pytest
 from job_corpus import model
 from job_corpus.adapters import process_runner, toml_jobs
+
+if typ.TYPE_CHECKING:
+    import collections.abc as cabc
 
 hypothesis.settings.register_profile("default", deadline=None)
 hypothesis.settings.register_profile(
@@ -25,48 +29,75 @@ CORPUS_ROOT = pathlib.Path(__file__).resolve().parent / "job_corpus"
 """The corpus directory: job data, the reference oracle, and the alternatives."""
 
 
-def _awk_executable() -> str | None:
-    """Resolve the awk the corpus harness should execute, or ``None``.
+class AwkFacts(typ.NamedTuple):
+    """The host awk the corpus runs, resolved once at configuration time."""
 
-    ``JOB_CORPUS_AWK`` wins, so CI pins mawk rather than trusting ``PATH``.
+    executable: str | None
+    """The resolved path, or ``None`` when no awk is installed."""
+
+    banner: str
+    """The first version line the probe printed, or ``""`` for no answer."""
+
+    named: bool
+    """Whether ``JOB_CORPUS_AWK`` named the executable, rather than ``PATH``."""
+
+
+AWK_FACTS_KEY: pytest.StashKey[AwkFacts] = pytest.StashKey()
+"""Where the session stores the facts, so rendering reads rather than probes."""
+
+
+def collect_awk_facts(
+    *,
+    environ: cabc.Mapping[str, str] = os.environ,
+    which: cabc.Callable[[str], str | None] = shutil.which,
+    probe: cabc.Callable[[str], str] = process_runner.awk_version,
+) -> AwkFacts:
+    """Resolve the host awk and probe its version, before any rendering.
+
+    Discovery, the environment, and the probe are injectable, so a test can
+    drive every outcome without depending on this host's installed awks.
 
     Returns
     -------
-    str | None
-        The named executable, or the first awk on ``PATH``, or ``None``.
+    AwkFacts
+        The executable, its version banner, and whether it was named.
     """
-    return os.environ.get("JOB_CORPUS_AWK") or shutil.which("awk")
+    named = environ.get("JOB_CORPUS_AWK", "")
+    executable = named or which("awk")
+    return AwkFacts(executable, probe(executable) if executable else "", bool(named))
 
 
-def report_header_line(executable: str | None, banner: str, *, named: bool) -> str:
-    """Format the corpus awk header line from already-probed facts.
+def pytest_configure(config: pytest.Config) -> None:
+    """Resolve the host awk once, at the session boundary before rendering."""
+    config.stash[AWK_FACTS_KEY] = collect_awk_facts()
 
-    ``banner`` is what `process_runner.awk_version` reported, and ``named``
-    says whether ``JOB_CORPUS_AWK`` supplied the executable. Both absences are
-    named outright, so the header never invents a version.
+
+def report_header_line(facts: AwkFacts) -> str:
+    """Format the corpus awk header line from facts already collected.
+
+    Both absences are named outright, so the header never renders an empty
+    version as though it were a version somebody probed.
 
     Returns
     -------
     str
-        The one-line report naming the probe's outcome.
+        The one-line report naming what the probe found.
     """
-    override = " [JOB_CORPUS_AWK]" if named else ""
-    found = executable or "no awk"
-    return f"job corpus awk: {found} ({banner or 'version unknown'}){override}"
+    found = facts.executable or "no awk"
+    banner = facts.banner or "version unknown"
+    override = " [JOB_CORPUS_AWK]" if facts.named else ""
+    return f"job corpus awk: {found} ({banner}){override}"
 
 
 def pytest_report_header(config: pytest.Config) -> str:
-    """Report which awk the corpus harness will execute, and its version.
+    """Report the awk resolved at configuration, without probing again.
 
     Returns
     -------
     str
-        The header line built from the resolved executable and its probe.
+        The header line built from the facts `pytest_configure` stored.
     """
-    executable = _awk_executable()
-    banner = process_runner.awk_version(executable) if executable else ""
-    named = bool(os.environ.get("JOB_CORPUS_AWK"))
-    return report_header_line(executable, banner, named=named)
+    return report_header_line(config.stash[AWK_FACTS_KEY])
 
 
 @pytest.fixture(scope="session")
@@ -94,16 +125,19 @@ def repository_jobs(corpus_root: pathlib.Path) -> tuple[model.CorpusJob, ...]:
 
 
 @pytest.fixture(scope="session")
-def process_runner_instance(corpus_root: pathlib.Path) -> process_runner.ProcessRunner:
-    """Return a runner rooted at the repository corpus, probing the host awk once.
+def process_runner_instance(
+    corpus_root: pathlib.Path, pytestconfig: pytest.Config
+) -> process_runner.ProcessRunner:
+    """Return a runner rooted at the repository corpus, using the session awk.
 
     Returns
     -------
     process_runner.ProcessRunner
         The runner the corpus tests execute implementations through.
     """
+    facts = pytestconfig.stash[AWK_FACTS_KEY]
     return process_runner.ProcessRunner(
-        corpus_root=corpus_root, awk_executable=_awk_executable()
+        corpus_root=corpus_root, awk_executable=facts.executable
     )
 
 

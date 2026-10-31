@@ -1,0 +1,52 @@
+schema = 1
+id = "sample-job"
+title = "Reject sample records"
+category = "filtering"
+goals = ["G1"]
+decisions = ["Q1", "Q6"]
+contracts = ["DC-1"]
+evidence_status = "Assumption"
+provenance = ["docs/design-contracts.md §1"]
+program = { path = "program.pokie", args = ["-F", "|"] }
+
+[[alternatives]]
+kind = "reference"
+path = "reference.py"
+args = ["--strict"]
+
+[[alternatives]]
+kind = "awk"
+path = "alternative.awk"
+comparison = "sorted-lines"
+divergences = [{ case = "sample-case", reason = "POSIX leaves array order unspecified." }]
+
+[[alternatives]]
+kind = "prior-art"
+tool = "PAWK"
+description = "pawk -B with a regex filter."
+
+[[alternatives]]
+kind = "status-quo"
+description = "A Python loop combining re.search and a Counter."
+
+[[cases]]
+id = "sample-case"
+tags = ["malformed-record"]
+operands = ["records.log"]
+inputs = [{ name = "records.log", text = "ERROR a\n" }]
+expected = { stdout = "ERROR a\n", exit_status = 0, failure = "none" }
+earliest_task = "4.1.2"
+
+[[observations]]
+id = "OBS-01"
+kind = "ambiguity"
+contracts = ["DC-2"]
+questions = ["Q3"]
+summary = "The contract does not say whether empty input is a failure."
+
+[[observations]]
+id = "OBS-02"
+kind = "ergonomic-smell"
+contracts = ["DC-3"]
+questions = ["Q6"]
+summary = "The record grammar accepts more spellings than the contract names."

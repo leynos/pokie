@@ -8,18 +8,28 @@ Materializing a case's inputs and building that environment need no runner, so
 both are module-level: only the command shape and time limit vary per run.
 """
 
-import contextlib
 import dataclasses
 import os
 import pathlib
 import subprocess  # ruff: ignore[suspicious-subprocess-import] - the harness runs corpus implementations and the host awk probe, and nothing else.
 import sys
 import tempfile
+import typing as typ
 
 from job_corpus import model
 from job_corpus.ports import EvidenceFormatError
 
+if typ.TYPE_CHECKING:
+    import collections.abc as cabc
+
 _TIMEOUT_STATUS = -1
+
+_PROBE_FAILURES = (OSError, subprocess.SubprocessError)
+"""What a missing or misbehaving awk raises, and what the probe must survive.
+
+Named rather than written inline because the repository's lint runs one parser
+that predates unparenthesized ``except`` tuples.
+"""
 
 
 def _inputs_by_name(case: model.JobCase) -> dict[str, model.InputFile]:
@@ -155,12 +165,26 @@ def _environment(kind: model.ScriptKind) -> dict[str, str]:
     return {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LC_ALL": locale}
 
 
-def awk_version(executable: str) -> str:
+def awk_version(
+    executable: str,
+    *,
+    run: cabc.Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+) -> str:
     """Return the first version line ``executable`` prints, or ``""``.
 
     Both spellings are tried because mawk and gawk answer ``-W version`` and
     other awks only ``--version``. Standard input is closed so an awk that
-    treats ``version`` as program text cannot block, and failure returns ``""``.
+    treats ``version`` as program text cannot block, the environment is the
+    module's allowlist so no banner depends on the caller's locale, and any
+    failure returns ``""`` rather than raising: a host without a probe is
+    reported, never fatal.
+
+    Parameters
+    ----------
+    executable : str
+        The resolved awk to probe.
+    run : cabc.Callable[..., subprocess.CompletedProcess[str]]
+        The process launcher, injectable so every outcome is testable.
 
     Returns
     -------
@@ -168,18 +192,21 @@ def awk_version(executable: str) -> str:
         The banner's first line, or ``""`` when no probe yields one.
     """
     for arguments in (("-W", "version"), ("--version",)):
-        with contextlib.suppress(OSError, subprocess.SubprocessError):
-            completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - resolved executable and literal arguments, no shell.
+        try:
+            completed = run(
                 [executable, *arguments],
                 capture_output=True,
                 stdin=subprocess.DEVNULL,
                 text=True,
                 timeout=10,
                 check=False,
+                env=_environment(model.ScriptKind.AWK),
             )
-            banner = (completed.stdout + completed.stderr).strip()
-            if completed.returncode == 0 and banner:
-                return banner.splitlines()[0].strip()
+        except _PROBE_FAILURES:
+            continue
+        banner = (completed.stdout + completed.stderr).strip()
+        if completed.returncode == 0 and banner:
+            return banner.splitlines()[0].strip()
     return ""
 
 
