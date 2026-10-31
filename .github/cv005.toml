@@ -1,6 +1,2 @@
 repository = "leynos/pokie"
 interpreter = "3.14"
-
-# What the ratchet baseline measures: the package, not its tests.
-[selection]
-python-source = "./pokie"

@@ -211,8 +211,9 @@ Main owns CodeScene (CV-005). Nothing a pull request can start talks to
 CodeScene or holds its credential.
 
 - **Pull requests** (`.github/workflows/ci.yml`) run the tests, then measure
-  coverage and ratchet it with the shared `generate-coverage` action over
-  `./pokie`. The report is not uploaded anywhere.
+  coverage and ratchet it with the shared `generate-coverage` action over the
+  whole tree, as it measured before the move. The report is not uploaded
+  anywhere.
 - **Main** (`.github/workflows/coverage-main.yml`) is the one publisher. It
   runs on each push to `main` and on manual dispatch (which must target `main`:
   the `codescene` environment, whose deployment policy admits `main` alone,
@@ -230,8 +231,7 @@ CodeScene or holds its credential.
   later push advances it.
 
 The `generate-coverage` selection in both workflows must match field for field
-(`python-source`, format and interpreter), and `.github/cv005.toml` repeats the
-`python-source`.
+(format and interpreter), and `.github/cv005.toml` names the interpreter.
 
 ### The CV-005 contract check
 
