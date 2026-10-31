@@ -107,6 +107,64 @@ The session-scoped `reference_implementation` fixture selects a loaded job and
 its reference by script kind, and shares that pair across policy, comparison,
 and audit tests. Keep this fixture within the corpus tests.
 
+### Contributor contract
+
+The harness is test-only: it runs corpus implementations as child processes and
+never changes the `pokie/` package, so a change here alters proof rather than
+product behaviour.
+
+Three development dependencies carry distinct roles:
+
+- `pytest-bdd` drives the behavioural scenarios in `tests/features/`. Scenarios
+  are discovered through `bdd_features_base_dir` and bound to step definitions
+  by decorator, which is why `pyproject.toml` lists `@given`, `@when`, and
+  `@then` under `[tool.vulture] ignore_decorators`.
+- `hypothesis` generates the invariant cases in
+  `tests/test_job_corpus_properties.py`. `tests/conftest.py` registers a
+  `default` profile with no deadline, because the harness runs child processes
+  and coverage instrumentation can make a merely slow run miss one, and a `ci`
+  profile that derandomizes so a hosted failure is reproducible from its seed.
+- `syrupy` is available for snapshot tests of multivariant output. No snapshot
+  is committed yet; add one only for a stable output boundary, paired with
+  semantic assertions for the behaviour it represents.
+
+`testpaths` and `pythonpath` both point at `tests/`, so the harness imports as
+`job_corpus` and `conftest`. `empty_parameter_set_mark` is `fail_at_collect`: a
+corpus yielding no cases is a collection error, not a silently skipped
+obligation.
+
+`model.py` and the pure policy modules hold frozen values and decisions and may
+not import an adapter. `ports.py` declares `ProgramRunner` and
+`EvidenceFormatError`. `comparison.py` and `audit.py` compose loaded values:
+`audit_corpus` takes jobs, register rows, task identifiers, and findings text,
+and returns an `AuditReport`. Everything that parses a document or starts a
+program lives in `tests/job_corpus/adapters/`: `toml_source.py` reads a file
+and rejects a carriage return that `tomllib` would normalize away,
+`toml_values.py` and `toml_jobs.py` walk the schema, and `process_runner.py`
+materializes inputs and runs a child.
+
+Every loader failure is an `EvidenceFormatError` carrying the corpus-relative
+path and the dotted TOML key, so a message locates the defect without a
+traceback. `schema` is compared against an integer constant: Python makes
+`True == 1` and `1.0 == 1`, so a boolean or float version is refused rather
+than read as version 1.
+
+`ProcessRunner` always passes an argument list, never a shell, and gives each
+child an explicit environment allowlist: a reference runs under
+`sys.executable -I`, and the awk and shell alternatives under `LC_ALL=C`.
+Standard input is supplied explicitly, and each run has a ten-second default
+timeout that is reported as a timed-out observation rather than raised.
+`awk_version` probes `-W version` and then `--version`, and shares
+`ProcessRunner`'s role as one of only two places in the harness that start
+another program.
+
+`JOB_CORPUS_AWK` pins the awk the corpus executes; without it the first `awk` on
+`PATH` is used, and with neither, awk cases fail as unsupported instead of
+being skipped. The pytest report header names the executable and the version
+`process_runner.awk_version` reported, or says that neither was found; the
+formatting is a pure function, so the header can be tested without running
+anything.
+
 ## Automation scripts
 
 The [Scripting standards](scripting-standards.md) document provides guidance

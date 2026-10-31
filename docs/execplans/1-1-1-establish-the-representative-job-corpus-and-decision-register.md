@@ -424,6 +424,29 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   `tests/job_corpus/jobs/`: 26 Python files and 4,800 net Python lines, 44
   files overall, against limits of 45 and 4,800; the repairs were compacted
   into the branch rather than raising the limit.
+- [x] (2026-10-31) CodeRabbit's pre-merge table on `d86f8a7` raised two error
+  rows and one warning row that the inline dispositions did not cover; all
+  three were verified against source and are valid, and all three are repaired
+  in `eb6cd88`:
+  - Testing (Overall): the described-alternative and observation decoders had
+    no test that read them from the committed document, so a loader that
+    replaced either shape with a default would still pass. The corpus loader
+    test now asserts both shapes field by field.
+  - Unit Architecture: the report-header hook resolved the awk and probed its
+    version inside the pytest hook, so a formatter performed hidden process
+    execution. The probe now lives beside `ProcessRunner` as `awk_version`,
+    and the header line is built by a pure function the runner tests exercise
+    directly; the unused `awk_executable` fixture was removed.
+  - Developer Documentation: the developer guide gained a "Contributor
+    contract" subsection covering the three development dependencies and their
+    roles, collection policy, the pure-domain/adapter split, loader
+    diagnostics, the child-process boundary, and `JOB_CORPUS_AWK`.
+
+  Final measurement outside `tests/job_corpus/jobs/`: 26 Python files and 4,798
+  net Python lines, 44 files overall, against limits of 45 and 4,800. The
+  38-line overrun this round would otherwise have caused was absorbed by
+  condensing docstring prose in the touched modules; no Parameters, Returns, or
+  Raises section was dropped, and no test was weakened.
 
 ## Surprises & discoveries
 

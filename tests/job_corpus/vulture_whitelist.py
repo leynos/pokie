@@ -6,20 +6,15 @@ scanner cannot see through either pattern this package relies on:
 
 - The `StrEnum` vocabularies are a *wire format*. A member is reached when a
   `job.toml` string names it, through `toml_values._member`, which calls
-  `enum_type(text)`. Constructing a member from text is a runtime lookup, so
-  `Failure.GUARD` stays unreported until some expression spells it literally.
+  `enum_type(text)`, so `Failure.GUARD` stays unreported until some expression
+  spells it literally.
 - Some descriptive fields are read only by the report and documentation
   checks that later milestones add.
 
-This module is Vulture's documented answer to that: it is scanned as ordinary
-source, and each attribute access below marks one declared name as read. Every
-entry is real attribute access, so `ty` fails the build if a name is renamed or
-deleted, and the whitelist cannot silently drift out of step with the model.
-
-Entries should be *removed* as consuming code lands, never added speculatively:
-`tests/test_job_corpus_dead_code.py` fails when an entry here is no longer
-reported by Vulture, which is what keeps this list from rotting into a blanket
-exemption.
+Each attribute access below is real source, so `ty` fails the build if a name
+is renamed or deleted, and the list cannot drift out of step with the model.
+Entries are *removed* as consuming code lands, never added speculatively:
+`tests/test_job_corpus_dead_code.py` fails when Vulture no longer reports one.
 """
 
 from job_corpus import model
@@ -60,9 +55,7 @@ _ = (
     model.QuestionId.Q3,
     model.QuestionId.Q4,
     model.QuestionId.Q5,
-    model.QuestionId.Q6,
     model.QuestionId.Q7,
-    model.ObservationKind.ERGONOMIC_SMELL,
     model.ObservationKind.HOST_DIVERGENCE,
     model.EvidenceStatus.ESTABLISHED,
     model.EvidenceStatus.AGREED_BASIS,
@@ -72,21 +65,12 @@ _ = (
     model.EvidenceStatus.DEFERRED,
 )
 
-# Prose alternative kinds are resolved from TOML text.
-_ = (
-    model.DescribedKind.STATUS_QUO,
-    model.DescribedKind.PRIOR_ART,
-)
-
 # Read by the policy and report modules of EP-M1 and EP-M2.
 _ = (
-    model.DescribedAlternative.description,
     model.JobCase.earliest_task,
-    model.Observation.contracts,
     model.Observation.summary,
     model.CorpusJob.title,
     model.CorpusJob.goals,
-    model.CorpusJob.contracts,
     model.CorpusJob.evidence_status,
     model.CorpusJob.provenance,
     model.CorpusJob.program,

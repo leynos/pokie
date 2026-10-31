@@ -67,11 +67,9 @@ def make_case(
 ) -> model.JobCase:
     """Return a case that differs from the committed ones only in its operands.
 
-    The tags are deliberately empty: ``CaseTag`` names the edge cases the
-    committed corpus must cover, and these synthetic cases are not part of it.
-    Labelling them with a corpus tag would overstate what they demonstrate and
-    would retire that tag's entry in the Vulture whitelist before EP-M3 adds
-    the real case for it.
+    The tags are deliberately empty: ``CaseTag`` names edge cases the committed
+    corpus must cover, and labelling a synthetic case with one would overstate
+    what it demonstrates and retire that tag's Vulture entry early.
 
     Parameters
     ----------
@@ -318,3 +316,12 @@ def test_the_awk_report_survives_an_unrunnable_awk(
     monkeypatch.setenv("JOB_CORPUS_AWK", "/nonexistent/awk")
     header = conftest.pytest_report_header(request.config)
     assert "(version unknown) [JOB_CORPUS_AWK]" in header, header
+
+
+def test_the_header_line_reports_exactly_what_the_probe_found() -> None:
+    """A returned banner is reported; a missing executable and banner are said."""
+    found = conftest.report_header_line("/usr/bin/mawk", "mawk 1.3.4", named=False)
+    assert found == "job corpus awk: /usr/bin/mawk (mawk 1.3.4)", found
+    assert conftest.report_header_line(None, "", named=False) == (
+        "job corpus awk: no awk (version unknown)"
+    ), "a missing awk must be named, not shown as a version"

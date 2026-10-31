@@ -1,17 +1,13 @@
 r"""Scalar coercion for ``job.toml`` documents.
 
-This module is internal to the ``job_corpus.adapters`` package, and its
-underscore-prefixed names say as much: `job_corpus.adapters.toml_jobs` walks a
-document's schema and calls one helper per value, so the walk reads as the
-schema it implements while these helpers stay shared between its shapes.
-Nothing outside the package has a reason to import from here.
+These naming helpers are internal to the ``job_corpus.adapters`` package:
+`job_corpus.adapters.toml_jobs` walks a document's schema and calls one helper
+per value, so the walk reads as the schema it implements.
 
-Coercion never defaults. A value of the wrong shape is a defect in the
-evidence, not a value to guess at, so a failure names the corpus-relative file
-and the dotted TOML key it came from. Each helper accordingly takes a ``where``
-pair holding those two things, and every diagnostic the module raises comes
-from `_fail`: a guard calls it, and so does the ``_load_*`` walk that consumes
-these values.
+Coercion never defaults. A wrong-shaped value is a defect in the evidence, not
+something to guess at, so a failure names the corpus-relative file and the
+dotted TOML key: every helper takes a ``where`` pair holding both, and every
+diagnostic the module raises comes from `_fail`.
 
 Input bytes arrive as a single-line TOML basic string (``text``) or as
 hexadecimal (``hex``). A ``text`` value authored as a multiline string is
@@ -144,10 +140,8 @@ def _integer(value: object, where: Where) -> int:
     """Return an integer, rejecting booleans, or report the value as malformed.
 
     Every integer the schema reads goes through here, so a field cannot be
-    stricter or laxer than its neighbours. The check is on the type rather than
-    on the value because Python makes ``True == 1`` and ``1.0 == 1``: a boolean
-    or a float would otherwise compare equal to the integer a caller expects
-    and be accepted as one.
+    stricter or laxer than its neighbours. The check is on the type because
+    Python makes ``True == 1``: a boolean would otherwise pass as an integer.
 
     Parameters
     ----------
@@ -159,9 +153,8 @@ def _integer(value: object, where: Where) -> int:
     Returns
     -------
     int
-        The value as an integer. A value that is not one, or that is a boolean
-        which Python would otherwise let pass as 0 or 1, is reported through
-        `_fail`.
+        The value, unless it is not an integer or is a boolean; `_fail` reports
+        those instead.
     """
     if not isinstance(value, int) or isinstance(value, bool):
         _fail(where, "expected an integer")
@@ -341,11 +334,10 @@ def _contents(table: dict[str, object], where: Where) -> bytes:
 def _corpus_path(name: str, where: Where) -> pathlib.PurePosixPath:
     """Resolve a path written relative to its own job directory.
 
-    A job names its scripts the way a reader of that directory would, so the
-    job stays readable and moves without rewriting its paths. Domain values
-    carry the corpus-relative path instead, so the runner and the report never
-    need to know which job a script belongs to. For example, ``reference.py``
-    in ``jobs/example/job.toml`` resolves to ``jobs/example/reference.py``.
+    A job names its scripts the way a reader of that directory would, and domain
+    values carry the corpus-relative path, so the runner never needs to know
+    which job a script belongs to. For example, ``reference.py`` in
+    ``jobs/example/job.toml`` resolves to ``jobs/example/reference.py``.
 
     Parameters
     ----------

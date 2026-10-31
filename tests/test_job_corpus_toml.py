@@ -2,15 +2,14 @@
 
 Obligation LEM-LOAD-1 in the ExecPlan owns this module. The tests pin the
 loader's strictness where a wrong-typed value could pass as the right one:
-``schema`` is compared against an integer constant, and Python makes
-``True == 1`` and ``1.0 == 1``, so a boolean or float version would otherwise
-load as version 1 — a malformed file accepted in silence.
+Python makes ``True == 1`` and ``1.0 == 1``, so a boolean or float ``schema``
+would otherwise load as version 1 — a malformed file accepted in silence.
 """
 
 import pathlib
 
 import pytest
-from job_corpus import ports
+from job_corpus import model, ports
 from job_corpus.adapters import toml_jobs, toml_source
 
 RELATIVE = pathlib.PurePosixPath("jobs/sample-job/job.toml")
@@ -49,10 +48,8 @@ earliest_task = "4.1.2"
 def document_for(schema: str) -> str:
     """Return the sample document with its version spelled as ``schema``.
 
-    Parameters
-    ----------
-    schema : str
-        The TOML spelling of the version, such as ``"true"`` or ``"1.0"``.
+    The TOML spelling, such as ``"true"`` or ``"1.0"``, replaces only the first
+    line, so each refusal test differs from the valid document solely in it.
 
     Returns
     -------
@@ -70,6 +67,38 @@ def test_the_sample_document_loads() -> None:
     """
     job = toml_jobs.load_job(DOCUMENT, RELATIVE)
     assert job.job_id == "sample-job", f"the sample loaded as {job.job_id!r}"
+
+
+def test_the_repository_job_decodes_described_alternatives_and_observations(
+    repository_jobs: tuple[model.CorpusJob, ...],
+) -> None:
+    """Both prose shapes must decode, not be replaced by loader defaults.
+
+    The corpus tests read cases, scripts, tags, and divergences from the loaded
+    job, so a loader that defaulted these shapes would still pass them.
+    """
+    (job,) = [
+        item for item in repository_jobs if item.job_id == "validate-user-records"
+    ]
+    described = [
+        item
+        for item in job.alternatives
+        if isinstance(item, model.DescribedAlternative)
+    ]
+    assert [(item.kind, item.tool) for item in described] == [
+        (model.DescribedKind.PRIOR_ART, "PAWK"),
+        (model.DescribedKind.STATUS_QUO, ""),
+    ], "both described kinds and their tools must survive the loader"
+    assert described[0].description.startswith("pawk -B with a regex filter"), (
+        described[0].description
+    )
+    (observation,) = job.observations
+    assert (observation.observation_id, observation.kind) == (
+        "OBS-05",
+        model.ObservationKind.ERGONOMIC_SMELL,
+    ), "the observation's identity and kind must decode"
+    assert observation.contracts == ("DC-3",), "the contract reference must decode"
+    assert observation.questions == (model.QuestionId.Q6,), "Q6 must decode as its id"
 
 
 @pytest.mark.parametrize(

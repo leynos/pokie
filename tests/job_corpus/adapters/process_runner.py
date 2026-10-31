@@ -1,20 +1,18 @@
 r"""Run corpus implementations as child processes.
 
-The runner is the only place in the harness that starts another program. It
-always passes an argument list, never a shell, and always gives the child an
-explicit environment allowlist: an inherited environment would make a case's
-outcome depend on the developer's locale, search path, or Python
-configuration.
+The runner and `awk_version` are the only places in the harness that start
+another program. They pass an argument list, never a shell, and an explicit
+environment allowlist, so no outcome depends on the developer's locale.
 
-Materializing a case's inputs and building that environment are module-level
-functions because neither needs the runner: only the command shape and the
-time limit vary between runs.
+Materializing a case's inputs and building that environment need no runner, so
+both are module-level: only the command shape and time limit vary per run.
 """
 
+import contextlib
 import dataclasses
 import os
 import pathlib
-import subprocess  # ruff: ignore[suspicious-subprocess-import] - the harness runs corpus implementations and nothing else.
+import subprocess  # ruff: ignore[suspicious-subprocess-import] - the harness runs corpus implementations and the host awk probe, and nothing else.
 import sys
 import tempfile
 
@@ -27,10 +25,8 @@ _TIMEOUT_STATUS = -1
 def _inputs_by_name(case: model.JobCase) -> dict[str, model.InputFile]:
     """Return the case's inputs keyed by name, refusing any ambiguity.
 
-    Every input name must be a bare file name, and no two may coincide. Both
-    rules protect the same thing: the name is what maps an operand to bytes, so
-    a name that is really a path, or one used twice, would have the run read
-    bytes the case's own operands do not select.
+    Every input name must be a bare file name and no two may coincide: the name
+    maps an operand to bytes, so a path-like or reused name reads other bytes.
 
     Parameters
     ----------
@@ -80,15 +76,9 @@ def _materialize(
 ) -> tuple[list[str], bytes]:
     """Write the case's inputs and resolve its operands.
 
-    A case that names no operand reads standard input, as does one whose only
-    operand is ``-``; the program's own convention decides that, and awk and
-    the oracle agree on it. Either route needs exactly one input, because the
-    runner cannot know which of several a program would read, and guessing the
-    first would report a result for an input the case never selected.
-
-    Every other operand becomes the path of the file just written, and the case
-    must list an input under that name. Inputs exist only for the duration of
-    the run.
+    An absent operand, or a lone ``-``, reads standard input and so needs
+    exactly one input: the runner cannot know which of several a program would
+    read. Every other operand names a file written for the run alone.
 
     Parameters
     ----------
@@ -163,6 +153,34 @@ def _environment(kind: model.ScriptKind) -> dict[str, str]:
     """
     locale = "C.UTF-8" if kind is model.ScriptKind.REFERENCE else "C"
     return {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LC_ALL": locale}
+
+
+def awk_version(executable: str) -> str:
+    """Return the first version line ``executable`` prints, or ``""``.
+
+    Both spellings are tried because mawk and gawk answer ``-W version`` and
+    other awks only ``--version``. Standard input is closed so an awk that
+    treats ``version`` as program text cannot block, and failure returns ``""``.
+
+    Returns
+    -------
+    str
+        The banner's first line, or ``""`` when no probe yields one.
+    """
+    for arguments in (("-W", "version"), ("--version",)):
+        with contextlib.suppress(OSError, subprocess.SubprocessError):
+            completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - resolved executable and literal arguments, no shell.
+                [executable, *arguments],
+                capture_output=True,
+                stdin=subprocess.DEVNULL,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            banner = (completed.stdout + completed.stderr).strip()
+            if completed.returncode == 0 and banner:
+                return banner.splitlines()[0].strip()
+    return ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -246,8 +264,7 @@ class ProcessRunner:
         -------
         model.ObservedOutcome
             The captured bytes, exit status, and timeout flag. A timeout is a
-            reported outcome, not an exception, so one slow implementation
-            cannot abort the whole corpus run.
+            reported outcome, so one slow implementation aborts no run.
         """
         try:
             completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - argument list, no shell.
