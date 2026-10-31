@@ -342,6 +342,37 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   test together with the helper that `main` deleted. Full suite after the
   rebase: 194 tests; first-party coverage 2249/2294 lines (98.0384%),
   re-baselined to `98.04`.
+- [x] (2026-10-31) Hosted ExecPlan assessment of `f305d1a` (request
+  6542733126, Assessment-ID `PLAN-1-1-1-20261031-01`; CodeRabbit reply
+  6542746791). The reply accepted the plateau as substantially implemented and
+  found no further defect in the pure EP-M1 policy, but named two medium
+  harness defects and one traceability omission, all repaired in this round:
+  - the repository alternative sweep judged a declared divergence by hand,
+    so a timed-out run could satisfy the declaration and
+    `implementation.comparison` was ignored. The sweep now delegates to
+    `comparison.evaluate_agreement` through `agreement_failure`, and
+    `test_alternative_agrees_or_declares_divergence` relabels a real diverging
+    run as timed out and requires its rejection, so the timeout negative
+    control runs beside the case it guards.
+    `test_corpus_is_non_vacuous` additionally asserts the corpus declares at
+    least one divergence, so that control cannot empty itself.
+  - the loader's carriage-return check could never see a `text` input authored
+    as a multiline string, because `tomllib` normalizes CRLF and
+    `Path.read_text` had already erased physical CRs. `load_jobs` now reads
+    with `newline=""`, and `adapters/toml_source.py` refuses a multiline
+    ``text`` (bare or quoted key, basic or literal string) before parsing.
+  - the pytest report header now names the awk executable and its version
+    banner, as the mawk risk bullet promises, marking a `JOB_CORPUS_AWK`
+    override.
+
+  All three repairs were then compacted to keep the branch inside its
+  tolerances. The scan is tested directly, as a text-level function, rather
+  than through a full document per case, and the timeout control sits inside
+  `test_alternative_agrees_or_declares_divergence`, beside the run it judges.
+  Measured against the merge base outside `tests/job_corpus/jobs/`: 26 files
+  and 4,794 net Python lines against limits of 45 and 4,800. CodeScene reports
+  every touched file at code health 10.00, and the one duplication family the
+  shared gate raised is a recorded, reasoned exception (see the Decision log).
 
 ## Surprises & discoveries
 
@@ -725,6 +756,25 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   and the first-party coverage figure moved from 2245/2290 to 2249/2294 lines
   (98.0384%) because the removed test was fully covered.
 
+- Observation (2026-10-31, hosted assessment): two independent normalizations
+  were hiding the same prohibited representation. TOML itself normalizes
+  physical CRLF to LF inside a multiline string, so a `text` input authored
+  that way reaches `_contents` as clean text; and `Path.read_text` opens in
+  universal-newline mode, so `load_jobs` had erased the CR before `tomllib`
+  ever saw the document. Either alone would have defeated the check, which is
+  why the repair needed both a raw-source scan and a `newline=""` read. The
+  general lesson for evidence loaders: a check on decoded values cannot police
+  an encoding rule that decoding destroys; the last representation that still
+  holds the distinction is the bytes on disk.
+
+- Observation (2026-10-31, hosted assessment): the repository carried two
+  comparison policies. `comparison.evaluate_agreement` already rejected
+  timeouts and honoured `implementation.comparison`, but the end-to-end sweep
+  re-implemented the judgement with exact-byte equality, so the pure policy's
+  unit tests could pass while the sweep enforced something weaker. A duplicate
+  policy is not a harmless copy when the copy is the one that runs against the
+  corpus.
+
 ## Decision log
 
 - Decision (2026-10-30, coverage baseline bootstrap): re-base the Python
@@ -904,6 +954,18 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   the configured baseline paths. The reduced test count is the CodeScene helper
   test that `main` deleted with the helper; no corpus test was removed.
   Date/Author: 2026-10-31, implementation agent after the integration rebase.
+- Decision (2026-10-31, repair-round gates): record the loader's two
+  single-call sites as a reasoned duplication exception instead of extracting a
+  helper. The shared gate flags `tests/conftest.py` and
+  `tests/test_job_corpus_toml.py` for one identical expression,
+  `toml_jobs.load_jobs(...)`: the session fixture every corpus test consumes,
+  and the test proving an unreadable document is reported. No logic is shared,
+  and a helper wrapping a single call would add an indirection that names
+  nothing the loader's public API does not already say. The entry in
+  `[[tool.duplication_gate.allow]]` names both files and the reason; it
+  silences a family only when every location in that family lies in those two
+  files, so a copy elsewhere still blocks. Date/Author: 2026-10-31,
+  implementation agent after the scrutineer's gate run.
 
 ## Outcomes & retrospective
 
@@ -1158,7 +1220,10 @@ Obligations:
     strips a final newline fails the unterminated example.
   - Progress: the schema-version part of the domain has landed (see the
     Progress entry for EP-M0 review round 5); the input-encoding and
-    key-shape parts land with EP-M2.
+    key-shape parts land with EP-M2. The multiline-CRLF rejection is checked
+    on the raw source (`adapters/toml_source.py`) before parsing, because both
+    `tomllib` and universal-newline decoding erase the carriage return the rule
+    exists to refuse.
 - Obligation INV-ORDER-1: for `filter-error-lines`, the reference output is
   exactly the input records matching `\bERROR\b`, in input order, each followed
   by a newline.

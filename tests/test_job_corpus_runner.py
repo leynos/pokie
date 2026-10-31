@@ -16,6 +16,7 @@ when the record arrived, ``0 0`` when it did not.
 import dataclasses
 import pathlib
 
+import conftest
 import pytest
 from job_corpus import model, ports
 from job_corpus.adapters import process_runner
@@ -308,3 +309,12 @@ def test_command_boundaries_and_timeouts_are_observable(
         assert outcome.exit_status == expected.exit_status, (
             "completed runs retain status"
         )
+
+
+def test_the_awk_report_survives_an_unrunnable_awk(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The header must still report a pinned awk that cannot be executed."""
+    monkeypatch.setenv("JOB_CORPUS_AWK", "/nonexistent/awk")
+    header = conftest.pytest_report_header(request.config)
+    assert "(version unknown) [JOB_CORPUS_AWK]" in header, header

@@ -20,6 +20,7 @@ import tomllib
 import typing as typ
 
 from job_corpus import model
+from job_corpus.adapters.toml_source import reject_multiline_text_carriage_returns
 from job_corpus.adapters.toml_values import (
     _all_required,
     _contents,
@@ -302,14 +303,12 @@ def _load_identity(
 def load_job(document_text: str, relative: pathlib.PurePosixPath) -> model.CorpusJob:
     """Load one job document, keyed by its corpus-relative path.
 
-    ``relative`` locates the job's directory and keeps diagnostics corpus-relative.
-
     Parameters
     ----------
     document_text : str
         The ``job.toml`` file's text.
     relative : pathlib.PurePosixPath
-        The file's path relative to the corpus root.
+        The file's path relative to the corpus root, which names its directory.
 
     Returns
     -------
@@ -319,8 +318,10 @@ def load_job(document_text: str, relative: pathlib.PurePosixPath) -> model.Corpu
     Raises
     ------
     EvidenceFormatError
-        If the text is not valid TOML.
+        If a multiline ``text`` input contains a carriage return, or the text
+        is invalid TOML.
     """
+    reject_multiline_text_carriage_returns(document_text, relative)
     try:
         document = tomllib.loads(document_text)
     except tomllib.TOMLDecodeError as error:
@@ -364,10 +365,10 @@ def load_job(document_text: str, relative: pathlib.PurePosixPath) -> model.Corpu
 
 
 def load_jobs(corpus_root: pathlib.Path) -> tuple[model.CorpusJob, ...]:
-    """Load every job in the corpus, ordered by directory name.
+    r"""Load every job in the corpus, ordered by directory name.
 
-    The order is fixed so that test parameter identifiers, and therefore
-    failure reports, stay stable between runs.
+    The order keeps test identifiers stable. ``newline=""`` is load-bearing:
+    universal newlines would erase the ``\r`` that `toml_source` must see.
 
     Parameters
     ----------
@@ -391,7 +392,7 @@ def load_jobs(corpus_root: pathlib.Path) -> tuple[model.CorpusJob, ...]:
             document_path.relative_to(corpus_root).as_posix()
         )
         try:
-            text = document_path.read_text(encoding="utf-8")
+            text = document_path.read_text(encoding="utf-8", newline="")
         except OSError as error:
             message = f"cannot read job file: {error}"
             raise EvidenceFormatError(message, path=relative, key="") from error

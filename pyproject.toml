@@ -362,6 +362,15 @@ empty_parameter_set_mark = "fail_at_collect"
 package = true
 
 
+# One duplication family, considered and kept: both members make a single call
+# to the corpus loader's public entry point, in roles that share no logic. One
+# is the session fixture every corpus test consumes; the other proves that an
+# unreadable document is reported rather than silently skipped. nose reports
+# these as unnamed fragments, so the keys stop at the file.
+[[tool.duplication_gate.allow]]
+members = ["tests/conftest.py", "tests/test_job_corpus_toml.py"]
+reason = "Both sites are one call to the loader's public API in different roles, with no shared logic to extract."
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

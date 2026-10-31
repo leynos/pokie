@@ -14,8 +14,10 @@ from `_fail`: a guard calls it, and so does the ``_load_*`` walk that consumes
 these values.
 
 Input bytes arrive as a single-line TOML basic string (``text``) or as
-hexadecimal (``hex``), never as a multi-line string: `tomllib` normalizes
-``\r\n`` inside those, so a carriage return needs ``hex``.
+hexadecimal (``hex``). A ``text`` value authored as a multiline string is
+rejected by `job_corpus.adapters.toml_source` before parsing, not silently
+normalized: `tomllib` normalizes ``\r\n`` inside those, so a carriage return
+needs ``hex``.
 """
 
 import enum

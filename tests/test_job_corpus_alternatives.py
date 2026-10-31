@@ -10,7 +10,7 @@ import os
 import pathlib
 
 import pytest
-from job_corpus import model
+from job_corpus import comparison, findings, model
 from job_corpus.adapters import process_runner, toml_jobs
 
 CORPUS_ROOT = pathlib.Path(__file__).resolve().parent / "job_corpus"
@@ -80,6 +80,51 @@ def describe(outcome: model.ObservedOutcome) -> str:
     )
 
 
+def agreement_failure(
+    job: model.CorpusJob,
+    case: model.JobCase,
+    implementation: model.ScriptImplementation,
+    outcome: model.ObservedOutcome,
+) -> str | None:
+    """Return why an outcome may not pass, or ``None`` when it may.
+
+    For example, a declared divergence whose run now agrees returns a
+    diagnostic, so a stale declaration cannot hide a mistaken expectation, and
+    a timed-out run is classified as an unexpected difference rather than
+    accepted by virtue of the empty output a timeout leaves behind.
+
+    Returns
+    -------
+    str | None
+        ``None`` when the run agreed or declared a genuine divergence;
+        otherwise a diagnostic naming the pair and what was observed.
+    """
+    agreement = comparison.evaluate_agreement(implementation, case, outcome)
+    if agreement in {
+        findings.Agreement.AGREED,
+        findings.Agreement.DECLARED_DIVERGENCE,
+    }:
+        return None
+    return (
+        f"{job.job_id}/{case.case_id}: {implementation.path} is {agreement}, "
+        f"expected {case.expected.stdout!r} with status "
+        f"{case.expected.exit_status}; observed {describe(outcome)}"
+    )
+
+
+def skip_without_awk(
+    job: model.CorpusJob,
+    implementation: model.ScriptImplementation,
+    runner: process_runner.ProcessRunner,
+) -> None:
+    """Skip a run whose awk is missing, unless CI reports that as a failure."""
+    if implementation.kind is not model.ScriptKind.AWK or runner.awk_executable:
+        return
+    if os.environ.get("CI"):
+        pytest.fail(f"{job.job_id}: awk is required in continuous integration")
+    pytest.skip("awk not on PATH")
+
+
 def test_corpus_is_non_vacuous() -> None:
     """The corpus must hold exactly the planned inventory.
 
@@ -101,6 +146,7 @@ def test_corpus_is_non_vacuous() -> None:
     assert categories == EXPECTED_CATEGORIES, why
     why = f"every planned tag needs a case; missing {REQUIRED_TAGS - tags}"
     assert tags >= REQUIRED_TAGS, why
+    assert any(impl.divergences for _, _, impl in _SCRIPTS), "no divergence to control"
 
 
 @pytest.mark.parametrize(("job", "case", "implementation"), REFERENCE_RUNS)
@@ -148,40 +194,21 @@ def test_alternative_agrees_or_declares_divergence(
 
     The second half matters as much as the first: a declaration whose case now
     agrees is stale, and a stale declaration would otherwise hide a mistaken
-    expectation.
+    expectation. A declared divergence is also relabelled as timed out, because
+    a timeout leaves an exit status and often an empty stdout that would
+    otherwise satisfy the declaration by accident.
 
-    The awk this skip reasons about is read off the very runner that would
-    start it, so the precondition and the run cannot disagree about which
-    interpreter is under test.
+    The awk this skip reasons about is read off the runner that would start
+    it, so a missing interpreter is a skip here rather than a silent pass.
     """
-    if (
-        implementation.kind is model.ScriptKind.AWK
-        and process_runner_instance.awk_executable is None
-    ):
-        if os.environ.get("CI"):
-            pytest.fail(f"{job.job_id}: awk is required in continuous integration")
-        pytest.skip("awk not on PATH")
+    skip_without_awk(job, implementation, process_runner_instance)
     outcome = process_runner_instance.run(implementation, case)
-    declared = {divergence.case_id for divergence in implementation.divergences}
-    if case.case_id in declared:
-        why = (
-            f"{job.job_id}/{case.case_id}: {implementation.path} declares a "
-            f"divergence that no longer holds: {describe(outcome)}"
+    failure = agreement_failure(job, case, implementation, outcome)
+    assert failure is None, failure
+    if any(d.case_id == case.case_id for d in implementation.divergences):
+        rejection = agreement_failure(
+            job, case, implementation, dataclasses.replace(outcome, timed_out=True)
         )
-        # A divergence is a difference in the outcome, which is the stdout and
-        # the exit status together, as the agreeing branch below also judges.
-        # Comparing the stdout alone would report a declaration as stale while
-        # the alternative still differs from the oracle another way.
-        differs = (
-            outcome.stdout != case.expected.stdout
-            or outcome.exit_status != case.expected.exit_status
+        assert rejection is not None, (
+            f"{job.job_id}/{case.case_id}: {implementation.path} accepted a timeout"
         )
-        assert differs, why
-        return
-    why = (
-        f"{job.job_id}/{case.case_id}: {implementation.path} produced "
-        f"{describe(outcome)}, expected {case.expected.stdout!r} with status "
-        f"{case.expected.exit_status}"
-    )
-    assert outcome.stdout == case.expected.stdout, why
-    assert outcome.exit_status == case.expected.exit_status, why

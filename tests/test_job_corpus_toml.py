@@ -15,7 +15,7 @@ import pathlib
 
 import pytest
 from job_corpus import ports
-from job_corpus.adapters import toml_jobs
+from job_corpus.adapters import toml_jobs, toml_source
 
 RELATIVE = pathlib.PurePosixPath("jobs/sample-job/job.toml")
 """Where the sample document sits relative to the corpus root.
@@ -181,3 +181,77 @@ def test_a_job_document_that_cannot_be_read_is_reported(tmp_path: pathlib.Path) 
 def test_an_empty_corpus_is_loaded_for_policy_to_report(tmp_path: pathlib.Path) -> None:
     """The loader preserves an empty inventory for the non-vacuity policy."""
     assert not toml_jobs.load_jobs(tmp_path), "empty directories must yield no jobs"
+
+
+_INLINE_INPUT = 'inputs = [{ name = "records.log", text = "ERROR a\\n" }]'
+"""The sample's inline input table, which the multiline tests replace."""
+
+_CRLF_TEXT = 'inputs = [{ name = "records.log", text = """a\r\nb""" }]'
+"""A multiline ``text`` whose raw CRLF `tomllib` would normalize away."""
+
+_REFUSED = [
+    pytest.param(_CRLF_TEXT, id="basic-crlf"),
+    pytest.param("inputs = [{ name = 'r', text = '''a\rb''' }]", id="literal-cr"),
+    pytest.param('inputs = [{ "text" = """a\r\nb""" }]', id="quoted-key"),
+    pytest.param('a = 1\ninputs = [{ text = """c\r\nd""" }]', id="after-plain-key"),
+    pytest.param('x = """a\\"""b"""\ntext = """c\r\nd"""', id="after-escape"),
+    pytest.param('x = """a""""\ntext = """c\r\nd"""', id="after-trailing-quote"),
+    pytest.param('x = "a#b\\"c"\ntext = """d\r\ne"""', id="after-hash"),
+]
+"""Sources the scan must refuse: a ``text`` string holding a physical CR.
+
+The literals before the later cases also prove an earlier one does not
+misalign the scan.
+"""
+
+_ACCEPTED = [
+    pytest.param('inputs = [{ text = """a\nb\n""" }]', id="multiline-lf"),
+    pytest.param('# text = """\ninputs = [{ text = "a" }]', id="in-a-comment"),
+    pytest.param('inputs = ["""a\r\nb"""]', id="not-a-value"),
+    pytest.param('x = """a\r\nb"""', id="another-key"),
+    pytest.param('= """a\r\nb"""', id="no-key"),
+    pytest.param('text = """a', id="unterminated"),
+]
+"""Sources the scan must leave alone, because they hide no ``text`` CR."""
+
+
+@pytest.mark.parametrize("source", _REFUSED)
+def test_a_multiline_text_holding_a_carriage_return_is_refused(source: str) -> None:
+    """The scan must refuse a multiline ``text`` before `tomllib` can hide the CR."""
+    with pytest.raises(ports.EvidenceFormatError) as raised:
+        toml_source.reject_multiline_text_carriage_returns(source, RELATIVE)
+    assert raised.value.path == RELATIVE, source
+    assert raised.value.key == "cases.inputs.text", source
+
+
+@pytest.mark.parametrize("source", _ACCEPTED)
+def test_the_scan_refuses_nothing_but_a_text_carriage_return(source: str) -> None:
+    """A comment, another key, or an unterminated literal is left to `tomllib`."""
+    toml_source.reject_multiline_text_carriage_returns(source, RELATIVE)
+
+
+@pytest.mark.parametrize(
+    ("document", "expected"),
+    [
+        pytest.param(DOCUMENT.replace("\n", "\r\n"), b"ERROR a\n", id="single-line"),
+        pytest.param(DOCUMENT.replace(_INLINE_INPUT, _CRLF_TEXT), None, id="multiline"),
+    ],
+)
+def test_reading_a_file_preserves_the_carriage_returns_it_holds(
+    tmp_path: pathlib.Path, document: str, expected: bytes | None
+) -> None:
+    """``newline=""`` must expose the CR that the source scan has to reject.
+
+    The single-line text loads and keeps its bytes under CRLF line endings; the
+    multiline one is refused, so reading erased nothing either way.
+    """
+    document_path = tmp_path / RELATIVE
+    document_path.parent.mkdir(parents=True)
+    document_path.write_bytes(document.encode("utf-8"))
+    if expected is None:
+        with pytest.raises(ports.EvidenceFormatError) as raised:
+            toml_jobs.load_jobs(tmp_path)
+        assert raised.value.key == "cases.inputs.text", "the CR must survive"
+        return
+    (job,) = toml_jobs.load_jobs(tmp_path)
+    assert job.cases[0].inputs[0].content == expected, "CRLF must not reach the text"

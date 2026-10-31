@@ -50,10 +50,14 @@ classifies test paths as entry points, so pinned Vulture 2.16 also checks
 `tests/` at its 60% minimum confidence. It exempts only `test_*` and
 `pytestmark` names, while still checking their bodies. The shared duplication
 command checks supported source files under `pokie/`, `tests/`, `scripts/`, and
-`.github/`; documentation is outside its roots. These source tools do not
-analyse YAML syntax. `yamllint` checks YAML under `.github`, `action-validator`
-checks local action manifests, and Actionlint checks workflows plus adapted
-local actions; Actionlint also checks shell steps through ShellCheck. The local
+`.github/`; documentation is outside its roots. A considered duplication
+exception is recorded in `[[tool.duplication_gate.allow]]` in `pyproject.toml`,
+naming every location in its family and why the copy stays; add one only when
+the repeated call is a public entry point used in genuinely different roles,
+never to avoid extracting shared logic. These source tools do not analyse YAML
+syntax. `yamllint` checks YAML under `.github`, `action-validator` checks local
+action manifests, and Actionlint checks workflows plus adapted local actions;
+Actionlint also checks shell steps through ShellCheck. The local
 `scripts/action_workflow.py` adapter projects composite action inputs and steps
 into a workflow for Actionlint. The `lint-actions` loop runs `action-validator`
 for every action, then pipes the adapter's output to Actionlint only when it

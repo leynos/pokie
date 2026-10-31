@@ -8,9 +8,11 @@ derandomizes, which makes a continuous-integration failure reproducible from
 its seed rather than a fresh draw.
 """
 
+import contextlib
 import os
 import pathlib
 import shutil
+import subprocess  # ruff: ignore[suspicious-subprocess-import] - the header probes the resolved awk for its version banner.
 
 import hypothesis
 import pytest
@@ -25,6 +27,64 @@ hypothesis.settings.load_profile("ci" if os.environ.get("CI") else "default")
 
 CORPUS_ROOT = pathlib.Path(__file__).resolve().parent / "job_corpus"
 """The corpus directory: job data, the reference oracle, and the alternatives."""
+
+
+def _awk_executable() -> str | None:
+    """Resolve the awk the corpus harness should execute.
+
+    ``JOB_CORPUS_AWK`` wins so CI can pin mawk when ``PATH`` also has gawk.
+
+    Returns
+    -------
+    str | None
+        The named executable, or the first awk on ``PATH``, or ``None``.
+    """
+    return os.environ.get("JOB_CORPUS_AWK") or shutil.which("awk")
+
+
+def _awk_banner(executable: str) -> str:
+    """Return an awk's version banner, or ``""`` when it prints none.
+
+    mawk and gawk answer ``-W version``, and ``--version`` covers the awks that
+    only implement the long form. BusyBox-style awks answer on standard error,
+    so both streams are read; a probe that cannot run or exits non-zero is
+    skipped, because the banner is reported for traceability and must not fail
+    collection.
+
+    Returns
+    -------
+    str
+        The first banner line, or ``""`` when neither spelling yields one.
+    """
+    for arguments in (("-W", "version"), ("--version",)):
+        with contextlib.suppress(OSError, subprocess.SubprocessError):
+            completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - resolved executable and literal arguments, no shell.
+                [executable, *arguments],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            banner = (completed.stdout + completed.stderr).strip()
+            if completed.returncode == 0 and banner:
+                return banner.splitlines()[0].strip()
+    return ""
+
+
+def pytest_report_header(config: pytest.Config) -> str:
+    """Report which awk the corpus harness will execute, and its version.
+
+    Returns
+    -------
+    str
+        One header line naming the executable and its version banner, or
+        stating that none was found.
+    """
+    executable = _awk_executable()
+    banner = _awk_banner(executable) if executable else ""
+    override = " [JOB_CORPUS_AWK]" if os.environ.get("JOB_CORPUS_AWK") else ""
+    found = executable or "no awk"
+    return f"job corpus awk: {found} ({banner or 'version unknown'}){override}"
 
 
 @pytest.fixture(scope="session")
@@ -64,10 +124,7 @@ def awk_executable() -> str | None:
         The executable named by ``JOB_CORPUS_AWK``, or the first awk on
         ``PATH``.
     """
-    override = os.environ.get("JOB_CORPUS_AWK")
-    if override:
-        return override
-    return shutil.which("awk")
+    return _awk_executable()
 
 
 @pytest.fixture(scope="session")
