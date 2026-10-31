@@ -16,7 +16,7 @@ Store architectural decision records as `docs/adrs/adr-nnnn-title-slug.md` and
 requests for comments as `docs/rfcs/rfc-nnnn-title-slug.md`, where `nnnn` is
 the four-digit, zero-padded sequence number and `title-slug` is the title in
 kebab case; the [documentation style guide](documentation-style-guide.md)
-defines the required sections. Update the users' guide when a roadmap slice
+defines the required sections. Update the user's guide when a roadmap slice
 ships user-visible behaviour.
 
 Before adding runtime helpers, search for existing equivalents. New helpers

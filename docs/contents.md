@@ -46,3 +46,7 @@ set.
 - [Scripting standards](scripting-standards.md) explains the preferred Python
   scripting stack, command execution patterns, and test expectations for helper
   scripts.
+- Executable plans
+  - [Establish the representative job corpus and decision register](execplans/1-1-1-establish-the-representative-job-corpus-and-decision-register.md)
+    records the plan for the executable job corpus, reference outcomes,
+    alternative implementations, and the decision register.
