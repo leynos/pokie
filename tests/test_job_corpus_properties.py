@@ -74,6 +74,63 @@ def test_verdict_tracks_contradictions_only(
     assert policy.derive_verdict((job,)) is expected, why
 
 
+def _row_is_invalid(owner: str, deadline: int, gate: int) -> bool:
+    """Return whether a generated register row breaks any register rule.
+
+    Parameters
+    ----------
+    owner : str
+        The row's owner text.
+    deadline : int
+        The index of the row's decision deadline in the candidate tasks.
+    gate : int
+        The index of the row's gate in the candidate tasks.
+
+    Returns
+    -------
+    bool
+        Whether the owner is a placeholder, a task reference is unknown, or
+        the deadline follows the gate.
+    """
+    if owner != "@leynos":
+        return True
+    if 3 in {deadline, gate}:
+        return True
+    return deadline > gate
+
+
+def _expected_register_subjects(
+    questions: list[str], owner: str, deadline: int, gate: int
+) -> set[str]:
+    """Return the subjects an independent register model expects.
+
+    Parameters
+    ----------
+    questions : list[str]
+        The generated question identifiers, one per register row.
+    owner : str
+        The row's owner text.
+    deadline : int
+        The index of the row's decision deadline in the candidate tasks.
+    gate : int
+        The index of the row's gate in the candidate tasks.
+
+    Returns
+    -------
+    set[str]
+        Missing or repeated question subjects, plus every generated question
+        when the row itself is invalid.
+    """
+    counts = collections.Counter(questions)
+    subjects = {
+        str(question) for question in model.QuestionId if counts[str(question)] != 1
+    }
+    subjects.update(question for question in questions if question == "Q9")
+    if _row_is_invalid(owner, deadline, gate):
+        subjects.update(questions)
+    return subjects
+
+
 @hyp.given(
     questions=st.lists(
         st.sampled_from([*map(str, model.QuestionId), "Q9"]), max_size=12
@@ -104,15 +161,6 @@ def test_register_gaps_match_model(
         for question in questions
     )
     errors = policy.find_register_gaps(rows, tasks)
-    counts = collections.Counter(questions)
-    expected_subjects = {
-        str(question) for question in model.QuestionId if counts[str(question)] != 1
-    }
-    expected_subjects.update(question for question in questions if question == "Q9")
-    row_invalid = owner != "@leynos" or deadline == 3 or gate == 3
-    if deadline < 3 and gate < 3:
-        row_invalid = row_invalid or deadline > gate
-    if row_invalid:
-        expected_subjects.update(questions)
+    expected_subjects = _expected_register_subjects(questions, owner, deadline, gate)
     why = "register findings must match the independent multiset/order model"
     assert {error.subject for error in errors} == expected_subjects, why

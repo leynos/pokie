@@ -32,6 +32,27 @@ _VULTURE_FOUND_UNUSED_CODE = 3
 """Vulture's documented exit status when it has findings to report."""
 
 
+def _class_body_lines(node: ast.ClassDef) -> dict[int, str]:
+    """Map one class body's statement lines to the class that declares them.
+
+    Parameters
+    ----------
+    node : ast.ClassDef
+        A class definition whose direct body declarations are wanted.
+
+    Returns
+    -------
+    dict[int, str]
+        Each statement's line number mapped to ``node.name``. A body statement
+        without a line number is omitted.
+    """
+    return {
+        lineno: node.name
+        for statement in node.body
+        if (lineno := getattr(statement, "lineno", None)) is not None
+    }
+
+
 def defining_class_by_line(tree: ast.Module) -> dict[int, str]:
     """Map each class-body declaration to the class that declares it.
 
@@ -49,12 +70,8 @@ def defining_class_by_line(tree: ast.Module) -> dict[int, str]:
     """
     classes: dict[int, str] = {}
     for node in ast.walk(tree):
-        if not isinstance(node, ast.ClassDef):
-            continue
-        for statement in node.body:
-            lineno = getattr(statement, "lineno", None)
-            if lineno is not None:
-                classes[lineno] = node.name
+        if isinstance(node, ast.ClassDef):
+            classes.update(_class_body_lines(node))
     return classes
 
 

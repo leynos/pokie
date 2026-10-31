@@ -7,16 +7,12 @@ would still pass its own tests.
 
 This module is the schema walk: it reads a document's tables in the order the
 schema nests them and delegates each scalar to
-`job_corpus.adapters.toml_values`, which owns the ``text`` and ``hex``
-encodings an input's bytes arrive in, the ``where`` pair every diagnostic
-carries, and `_fail`, the one place a diagnostic becomes an
-`EvidenceFormatError`.
+`job_corpus.adapters.toml_values`, which owns the ``text``/``hex`` encodings,
+the ``where`` pair every diagnostic carries, and `_fail`.
 
-Every ``_load_*`` function below takes the decoded TOML ``value`` to read and
-``where`` naming the file and dotted key it sits at, and reports a malformed
-value through `_fail` rather than defaulting. That convention is stated here
-once rather than repeated below, so each ``Raises`` section names only the
-failures the function raises itself.
+Every ``_load_*`` function takes the decoded ``value`` and ``where`` and
+reports a malformed value through `_fail` rather than defaulting; each
+``Raises`` section names only the failures the function raises itself.
 """
 
 import pathlib
@@ -183,17 +179,15 @@ def _load_divergence(value: object, where: Where) -> model.Divergence:
 def _load_script(
     table: dict[str, object], kind: model.ScriptKind, where: Where
 ) -> model.ScriptImplementation:
-    """Load an executable alternative: a reference, awk, shell, or pokie script.
+    """Load an executable alternative from its already-read ``table``.
 
-    ``kind`` is the kind the alternative's ``kind`` key named, and ``table``
-    is its table, already read as a table.
+    ``kind`` is the kind its ``kind`` key named; absent optional keys default
+    to no arguments, exact comparison, and no divergences.
 
     Returns
     -------
     model.ScriptImplementation
-        The script, with its arguments, comparison mode, and declared
-        divergences; absent optional keys take the schema's defaults of no
-        arguments, exact comparison, and no divergences.
+        The script, with its arguments, comparison mode, and divergences.
     """
     _no_unknown_keys(table, _SCRIPT_KEYS, where)
     _all_required(table, _REQUIRED_SCRIPT_KEYS, where)
@@ -220,15 +214,13 @@ def _load_described(
 ) -> model.DescribedAlternative:
     """Load an alternative the corpus names but does not execute.
 
-    ``kind`` is the kind the alternative's ``kind`` key named, and ``table``
-    is its table, already read as a table.
+    ``kind`` is the kind its ``kind`` key named; an absent ``tool`` becomes
+    the empty string that an unnamed status quo is written as.
 
     Returns
     -------
     model.DescribedAlternative
-        The named alternative and the prose describing it, where an absent
-        ``tool`` key becomes the empty string that an unnamed status quo is
-        written as.
+        The named alternative and its prose description.
     """
     _no_unknown_keys(table, _DESCRIBED_KEYS, where)
     _all_required(table, _REQUIRED_DESCRIBED_KEYS, where)
@@ -245,10 +237,8 @@ def _load_alternative(value: object, where: Where) -> model.Alternative:
     Returns
     -------
     model.Alternative
-        A script when ``kind`` names an executable language, or the described
-        alternative when it names prose. An unrecognized ``kind`` is reported
-        through `_fail`, whose return ends the function rather than letting
-        it fall off its end.
+        A script for an executable language, else the described alternative;
+        an unrecognized ``kind`` is reported through `_fail`.
     """
     table = _table(value, where)
     raw = _text(_required(table, "kind", where), _dotted(where, "kind"))
@@ -268,9 +258,7 @@ def _load_observation(value: object, where: Where) -> model.Observation:
     Returns
     -------
     model.Observation
-        The tension's identifier, kind, contracts, open questions, and
-        summary, where absent ``contracts`` and ``questions`` arrays become
-        empty.
+        The tension, with absent ``contracts`` and ``questions`` empty.
     """
     table = _table(value, where)
     _no_unknown_keys(table, _OBSERVATION_KEYS, where)
@@ -286,11 +274,35 @@ def _load_observation(value: object, where: Where) -> model.Observation:
     )
 
 
+def _load_identity(
+    table: dict[str, object], relative: pathlib.PurePosixPath, where: Where
+) -> str:
+    """Check the schema and that ``id`` names the containing directory.
+
+    Returns
+    -------
+    str
+        The job identifier, reused by the caller's model construction.
+    """
+    schema_where = _dotted(where, "schema")
+    schema = _integer(_required(table, "schema", where), schema_where)
+    if schema != SCHEMA_VERSION:
+        _fail(schema_where, f"expected {SCHEMA_VERSION}, got {schema!r}")
+    _all_required(table, _REQUIRED_JOB_KEYS, where)
+    directory = relative.parent.name
+    document_id = _text(table["id"], (relative, "id"))
+    if document_id != directory:
+        _fail(
+            (relative, "id"),
+            f"expected {directory!r} to match the directory name; got {document_id!r}",
+        )
+    return document_id
+
+
 def load_job(document_text: str, relative: pathlib.PurePosixPath) -> model.CorpusJob:
     """Load one job document, keyed by its corpus-relative path.
 
-    ``relative`` both locates the job's directory, which resolves the paths of
-    its scripts, and keeps every diagnostic corpus-relative.
+    ``relative`` locates the job's directory and keeps diagnostics corpus-relative.
 
     Parameters
     ----------
@@ -302,9 +314,7 @@ def load_job(document_text: str, relative: pathlib.PurePosixPath) -> model.Corpu
     Returns
     -------
     model.CorpusJob
-        The job, with its alternatives, cases, and observations. A job that
-        does not match the schema, or whose ``id`` disagrees with its
-        directory name, is reported through `_fail`.
+        The job, with its alternatives, cases, and observations.
 
     Raises
     ------
@@ -319,18 +329,7 @@ def load_job(document_text: str, relative: pathlib.PurePosixPath) -> model.Corpu
     where: Where = (relative, "")
     table = _table(document, where)
     _no_unknown_keys(table, _JOB_KEYS, where)
-    schema_where = _dotted(where, "schema")
-    schema = _integer(_required(table, "schema", where), schema_where)
-    if schema != SCHEMA_VERSION:
-        _fail(schema_where, f"expected {SCHEMA_VERSION}, got {schema!r}")
-    _all_required(table, _REQUIRED_JOB_KEYS, where)
-    directory = relative.parent.name
-    document_id = _text(table["id"], (relative, "id"))
-    if document_id != directory:
-        _fail(
-            (relative, "id"),
-            f"expected {directory!r} to match the directory name; got {document_id!r}",
-        )
+    document_id = _load_identity(table, relative, where)
     return model.CorpusJob(
         job_id=document_id,
         title=_text(table["title"], (relative, "title")),

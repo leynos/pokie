@@ -33,6 +33,74 @@ def _duplicates(values: cabc.Iterable[str]) -> tuple[str, ...]:
     )
 
 
+def _identity(subject: str, message: str) -> findings.Finding:
+    """Build an identity finding, the form every identity check reports.
+
+    Parameters
+    ----------
+    subject : str
+        The stable corpus-relative subject the defect is about.
+    message : str
+        The diagnostic text.
+
+    Returns
+    -------
+    findings.Finding
+        The finding, with the identity kind.
+    """
+    return findings.Finding(findings.FindingKind.IDENTITY, subject, message)
+
+
+def _missing_category_findings(
+    counts: collections.Counter[model.JobCategory],
+) -> tuple[findings.Finding, ...]:
+    """Report each category with fewer than the required number of jobs.
+
+    Parameters
+    ----------
+    counts : collections.Counter[model.JobCategory]
+        The number of jobs loaded per category.
+
+    Returns
+    -------
+    tuple[findings.Finding, ...]
+        One coverage finding per under-represented category, in enum order.
+    """
+    return tuple(
+        findings.Finding(
+            findings.FindingKind.COVERAGE,
+            f"category/{category}",
+            f"expected at least two jobs; found {counts[category]}",
+        )
+        for category in model.JobCategory
+        if counts[category] < MINIMUM_CATEGORY_JOBS
+    )
+
+
+def _missing_tag_findings(
+    tags: set[model.CaseTag],
+) -> tuple[findings.Finding, ...]:
+    """Report each case tag that no loaded example exercises.
+
+    Parameters
+    ----------
+    tags : set[model.CaseTag]
+        The tags present across every loaded case.
+
+    Returns
+    -------
+    tuple[findings.Finding, ...]
+        One coverage finding per missing tag, in enum order.
+    """
+    return tuple(
+        findings.Finding(
+            findings.FindingKind.COVERAGE, f"tag/{tag}", "no case exercises this tag"
+        )
+        for tag in model.CaseTag
+        if tag not in tags
+    )
+
+
 def find_coverage_gaps(
     jobs: cabc.Sequence[model.CorpusJob],
 ) -> tuple[findings.Finding, ...]:
@@ -52,23 +120,7 @@ def find_coverage_gaps(
     """
     counts = collections.Counter(job.category for job in jobs)
     tags = {tag for job in jobs for case in job.cases for tag in case.tags}
-    categories = (
-        findings.Finding(
-            findings.FindingKind.COVERAGE,
-            f"category/{category}",
-            f"expected at least two jobs; found {counts[category]}",
-        )
-        for category in model.JobCategory
-        if counts[category] < MINIMUM_CATEGORY_JOBS
-    )
-    missing_tags = (
-        findings.Finding(
-            findings.FindingKind.COVERAGE, f"tag/{tag}", "no case exercises this tag"
-        )
-        for tag in model.CaseTag
-        if tag not in tags
-    )
-    return (*categories, *missing_tags)
+    return (*_missing_category_findings(counts), *_missing_tag_findings(tags))
 
 
 def _script_implementations(
@@ -81,10 +133,11 @@ def _script_implementations(
     model.ScriptImplementation
         Each executable implementation in declaration order.
     """
-    for item in job.alternatives:
-        match item:
-            case model.ScriptImplementation():
-                yield item
+    yield from (
+        item
+        for item in job.alternatives
+        if isinstance(item, model.ScriptImplementation)
+    )
 
 
 def _job_identity_errors(job: model.CorpusJob) -> tuple[findings.Finding, ...]:
@@ -97,19 +150,13 @@ def _job_identity_errors(job: model.CorpusJob) -> tuple[findings.Finding, ...]:
     """
     cases = {case.case_id for case in job.cases}
     errors = [
-        findings.Finding(
-            findings.FindingKind.IDENTITY, job.job_id, f"duplicate case {case_id}"
-        )
+        _identity(job.job_id, f"duplicate case {case_id}")
         for case_id in _duplicates(case.case_id for case in job.cases)
     ]
     scripts = tuple(_script_implementations(job))
     if sum(item.kind is model.ScriptKind.REFERENCE for item in scripts) != 1:
         errors.append(
-            findings.Finding(
-                findings.FindingKind.IDENTITY,
-                job.job_id,
-                "expected exactly one reference implementation",
-            )
+            _identity(job.job_id, "expected exactly one reference implementation")
         )
     for script in scripts:
         errors.extend(_divergence_errors(script, cases))
@@ -126,40 +173,26 @@ def _divergence_errors(
     tuple[findings.Finding, ...]
         The findings for the supplied evidence.
     """
+    subject = str(script.path)
     errors = [
-        findings.Finding(
-            findings.FindingKind.IDENTITY,
-            str(script.path),
-            f"duplicate divergence {case_id}",
-        )
+        _identity(subject, f"duplicate divergence {case_id}")
         for case_id in _duplicates(item.case_id for item in script.divergences)
     ]
-    errors.extend(
-        findings.Finding(
-            findings.FindingKind.IDENTITY,
-            str(script.path),
-            f"divergence names unknown case {item.case_id}",
-        )
-        for item in script.divergences
-        if item.case_id not in cases
-    )
-    errors.extend(
-        findings.Finding(
-            findings.FindingKind.IDENTITY,
-            str(script.path),
-            f"divergence {item.case_id} has no reason",
-        )
-        for item in script.divergences
-        if not item.reason.strip()
-    )
-    if script.kind is model.ScriptKind.REFERENCE and script.divergences:
-        errors.append(
-            findings.Finding(
-                findings.FindingKind.IDENTITY,
-                str(script.path),
-                "reference cannot declare divergences",
+    unknown: list[findings.Finding] = []
+    unexplained: list[findings.Finding] = []
+    for item in script.divergences:
+        if item.case_id not in cases:
+            unknown.append(
+                _identity(subject, f"divergence names unknown case {item.case_id}")
             )
-        )
+        if not item.reason.strip():
+            unexplained.append(
+                _identity(subject, f"divergence {item.case_id} has no reason")
+            )
+    errors.extend(unknown)
+    errors.extend(unexplained)
+    if script.kind is model.ScriptKind.REFERENCE and script.divergences:
+        errors.append(_identity(subject, "reference cannot declare divergences"))
     return tuple(errors)
 
 
@@ -181,13 +214,11 @@ def find_identity_errors(
         The findings for the supplied evidence.
     """
     errors = [
-        findings.Finding(findings.FindingKind.IDENTITY, job_id, "duplicate job")
+        _identity(job_id, "duplicate job")
         for job_id in _duplicates(job.job_id for job in jobs)
     ]
     errors.extend(
-        findings.Finding(
-            findings.FindingKind.IDENTITY, identifier, "duplicate observation"
-        )
+        _identity(identifier, "duplicate observation")
         for identifier in _duplicates(
             item.observation_id for job in jobs for item in job.observations
         )
