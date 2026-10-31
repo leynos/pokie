@@ -307,13 +307,16 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   EP-M4 risk mitigation) name `make fmt` as a fixing step run before a green
   run and do not restate a check-then-format order, so the concrete-steps block
   was the only place that contradicted itself.
-- [ ] EP-M1: domain policy, comparison, and audit with unit and property
+- [x] EP-M1: domain policy, comparison, and audit with unit and property
   tests. Hosted CI exposed a coverage-ratchet failure after the sixth-review
   repairs: 92.75% against the unchanged 98.88% baseline and 1-point tolerance.
   Full sequential attempt 19 passes after public loader rejection, real runner
   boundary, and duplicate-divergence controls: 188 tests and project line
-  coverage 2245/2290 (98.0349%), above the unchanged 97.88% floor. Follow-up
-  CLI review remains pending.
+  coverage 2245/2290 (98.0349%), above the unchanged 97.88% floor. The local
+  CodeRabbit CLI review completed on 2026-10-31 with two docstyle findings,
+  both fixed; after the rebase onto `main` `f4f4278` the full gate set and the
+  CI coverage command pass again (194 tests, 2249/2294 lines, 98.0384%).
+  Accepted 2026-10-31.
 - [ ] EP-M2: adapters, runner, report snapshots, and unhappy scenarios.
 - [ ] EP-M3: corpus content and executable alternatives.
 - [ ] EP-M4: decision register document and register tests.
@@ -912,16 +915,21 @@ unchanged ratchet. The repair adds public loader and runner boundary controls
 and executes existing assertion diagnostics on passing paths. Its intermediate
 187-test diagnostic reached 97.85%; full sequential attempt 19 now passes 188
 tests and measures 2245/2290 project lines (98.0349%), above the unchanged
-97.88% floor. Local milestone review remains pending. Later milestones still
-own corpus content, remaining document adapters and scenarios, reports, and the
-decision register.
+97.88% floor. The local CodeRabbit CLI review completed on 2026-10-31 and
+reported two docstyle findings, both fixed; EP-M1 is accepted. The merge
+candidate rebases onto `main` `f4f4278`, where the full gate set and the CI
+coverage command pass again with 194 tests and 2249/2294 first-party lines
+(98.0384%). Later milestones still own corpus content, remaining document
+adapters and scenarios, reports, and the decision register; EP-M2 is partial
+and EP-M3–EP-M5 are not delivered, so roadmap 1.1.1 stays unchecked.
 
 The ratchet baseline is now bootstrapped from this branch: the committed
-`.coverage-baseline-v2.python` holds `98.07`, replacing a scaffold-era 98.88%
+`.coverage-baseline-v2.python` holds `98.04`, re-measured on the rebased
+candidate (it held `98.07` before integration), replacing a scaffold-era 98.88%
 figure that lived only in the shared action's cache, and both ratchet workflows
-name it. The value matches the branch measurement of 2282/2327 first-party
-lines (98.0662%) with 195 passing tests. This does not accept EP-M1; the
-milestone still needs its pending local review.
+name it. The value matches the branch measurement of 2249/2294 first-party
+lines (98.0384%) with 194 passing tests, and the hosted ratchet computes the
+same figure from the same command.
 
 ## Context and orientation
 
