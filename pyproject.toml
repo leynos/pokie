@@ -24,6 +24,9 @@ dev = [
     "ty==0.0.56",
     "pytest-timeout",
     "pytest-xdist",
+    "pytest-bdd>=9.0.0,<10",
+    "syrupy>=6.1.1,<7",
+    "hypothesis>=6.169.4,<7",
 ]
 
 [tool.ruff]
@@ -326,6 +329,9 @@ exclude = [".venv/**", ".uv-cache/**", ".uv-tools/**", ".tools/**", ".git/**"]
 # their function bodies and all other definitions remain checked.
 [tool.vulture]
 ignore_names = ["test_*", "pytestmark"]
+# pytest-bdd binds step functions through decorators rather than by name, so
+# their definitions are live even though nothing calls them directly.
+ignore_decorators = ["@given", "@when", "@then"]
 min_confidence = 60
 
 [tool.mutmut]
@@ -333,18 +339,45 @@ min_confidence = 60
 # repository-root paths outside tests/ must either add those paths to
 # `also_copy` or guard themselves with a skipif. See the shared-actions
 # caller guide (docs/mutation-mutmut-workflow.md).
+#
+# The corpus harness reads docs/decision-register.md, so the documentation
+# tree travels with the copied checkout. The workflow-contract check reads the
+# committed coverage baseline, so that file travels too.
 source_paths = ["pokie/"]
-also_copy = ["scripts/", ".github/", "Makefile", "pyproject.toml"]
+also_copy = [
+  "scripts/",
+  ".github/",
+  "Makefile",
+  "pyproject.toml",
+  "docs/",
+  ".coverage-baseline-v2.python",
+]
 pytest_add_cli_args_test_selection = ["tests/"]
 
 [tool.pytest.ini_options]
 # Tests automatically killed after seconds elapsed
 timeout = 30
 testpaths = ["tests"]
+# The corpus harness is imported as `job_corpus`; the feature files under
+# tests/features/ drive the behavioural scenarios.
+bdd_features_base_dir = "tests/features"
+pythonpath = ["tests"]
+# An empty corpus would silently skip every parameterized obligation, so treat
+# it as a collection error instead of a skip.
+empty_parameter_set_mark = "fail_at_collect"
 
 [tool.uv]
 package = true
 
+
+# One duplication family, considered and kept: both members make a single call
+# to the corpus loader's public entry point, in roles that share no logic. One
+# is the session fixture every corpus test consumes; the other proves that an
+# unreadable document is reported rather than silently skipped. nose reports
+# these as unnamed fragments, so the keys stop at the file.
+[[tool.duplication_gate.allow]]
+members = ["tests/conftest.py", "tests/test_job_corpus_toml.py"]
+reason = "Both sites are one call to the loader's public API in different roles, with no shared logic to extract."
 
 [build-system]
 requires = ["hatchling"]

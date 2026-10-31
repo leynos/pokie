@@ -12,12 +12,17 @@ The interpreter is not implemented. Begin with the
 Record semantics and compiler boundaries live in the design and structured
 contracts, not in generated scaffold modules. Proposed ADRs require explicit
 ratification and evidence; do not describe their capabilities as delivered.
-Update the users' guide when a roadmap slice ships user-visible behaviour.
+Store architectural decision records as `docs/adrs/adr-nnnn-title-slug.md` and
+requests for comments as `docs/rfcs/rfc-nnnn-title-slug.md`, where `nnnn` is
+the four-digit, zero-padded sequence number and `title-slug` is the title in
+kebab case; the [documentation style guide](documentation-style-guide.md)
+defines the required sections. Update the user's guide when a roadmap slice
+ships user-visible behaviour.
 
 Before adding runtime helpers, search for existing equivalents. New helpers
 must serve a defined compiler or execution feature, with scope and reuse policy
 documented in the design/contracts. Keep extension registration interfaces
-synchronized with ADR 003 and this guide when they are selected.
+synchronized with ADR 0003 and this guide when they are selected.
 
 ## Local workflow
 
@@ -45,10 +50,14 @@ classifies test paths as entry points, so pinned Vulture 2.16 also checks
 `tests/` at its 60% minimum confidence. It exempts only `test_*` and
 `pytestmark` names, while still checking their bodies. The shared duplication
 command checks supported source files under `pokie/`, `tests/`, `scripts/`, and
-`.github/`; documentation is outside its roots. These source tools do not
-analyse YAML syntax. `yamllint` checks YAML under `.github`, `action-validator`
-checks local action manifests, and Actionlint checks workflows plus adapted
-local actions; Actionlint also checks shell steps through ShellCheck. The local
+`.github/`; documentation is outside its roots. A considered duplication
+exception is recorded in `[[tool.duplication_gate.allow]]` in `pyproject.toml`,
+naming every location in its family and why the copy stays; add one only when
+the repeated call is a public entry point used in genuinely different roles,
+never to avoid extracting shared logic. These source tools do not analyse YAML
+syntax. `yamllint` checks YAML under `.github`, `action-validator` checks local
+action manifests, and Actionlint checks workflows plus adapted local actions;
+Actionlint also checks shell steps through ShellCheck. The local
 `scripts/action_workflow.py` adapter projects composite action inputs and steps
 into a workflow for Actionlint. The `lint-actions` loop runs `action-validator`
 for every action, then pipes the adapter's output to Actionlint only when it
@@ -65,9 +74,9 @@ Makefile, development dependencies, and Continuous Integration (CI). Bump
 either deliberately and update all locations together, then resolve any new
 diagnostics in the same change.
 
-Mutation runs copy `scripts/`, `.github/`, `Makefile`, and `pyproject.toml`
-through `[tool.mutmut] also_copy` so the tooling-contract tests retain their
-inputs in the isolated mutation tree.
+Mutation runs copy `scripts/`, `.github/`, `Makefile`, `pyproject.toml`,
+`docs/`, and the committed coverage baseline through `[tool.mutmut] also_copy`
+so the tooling-contract tests retain their inputs in the isolated mutation tree.
 
 `make check-fmt` checks Python formatting with Ruff and Markdown formatting with
 `mdtablefix` v0.6.1. CI installs that formatter through the shared
@@ -76,6 +85,104 @@ inputs in the isolated mutation tree.
 Run `make audit` as the dependency vulnerability gate. It runs `pip-audit` for
 Python dependencies, and Rust-enabled projects also run `cargo audit` from the
 `rust_extension` crate directory.
+
+## Corpus harness
+
+The representative corpus harness lives under `tests/job_corpus/`. Its frozen
+values and pure policies describe corpus evidence. `policy.py` provides the
+validation interface; `register_policy.py` owns decision-register deadlines,
+owners, and evidence-set checks, re-exported through `policy.py`. This feature
+split keeps the documented interfaces within the code-file size limit.
+
+Reuse these helpers within the corpus harness. Keep document parsing and
+process execution in adapters, and supply loaded values to `audit_corpus`. The
+domain boundary test includes every implemented policy module, including
+`register_policy.py`, and rejects adapter dependencies through absolute or
+relative imports. The checker normalizes `pathlib` import aliases before
+inspecting access: `pl.PurePosixPath` remains valid after
+`import pathlib as pl`, while `pl.Path.cwd()` is rejected under the same
+pure-path restriction.
+
+The session-scoped `reference_implementation` fixture selects a loaded job and
+its reference by script kind, and shares that pair across policy, comparison,
+and audit tests. Keep this fixture within the corpus tests.
+
+### Contributor contract
+
+The harness is test-only: it runs corpus implementations as child processes and
+never changes the `pokie/` package, so a change here alters proof rather than
+product behaviour.
+
+Three development dependencies carry distinct roles:
+
+- `pytest-bdd` drives the behavioural scenarios in `tests/features/`. Scenarios
+  are discovered through `bdd_features_base_dir` and bound to step definitions
+  by decorator, which is why `pyproject.toml` lists `@given`, `@when`, and
+  `@then` under `[tool.vulture] ignore_decorators`.
+- `hypothesis` generates the invariant cases in
+  `tests/test_job_corpus_properties.py`. `tests/conftest.py` registers a
+  `default` profile with no deadline, because the harness runs child processes
+  and coverage instrumentation can make a merely slow run miss one, and a `ci`
+  profile that derandomizes so a hosted failure is reproducible from its seed.
+- `syrupy` is available for snapshot tests of multivariant output. No snapshot
+  is committed yet; add one only for a stable output boundary, paired with
+  semantic assertions for the behaviour it represents.
+
+`testpaths` and `pythonpath` both point at `tests/`, so the harness imports as
+`job_corpus` and `conftest`. `empty_parameter_set_mark` is `fail_at_collect`: a
+corpus yielding no cases is a collection error, not a silently skipped
+obligation.
+
+`model.py` and the pure policy modules hold frozen values and decisions and may
+not import an adapter. `ports.py` declares the single port, `ProgramRunner`,
+whose `run(implementation, case)` returns an `ObservedOutcome` and never
+decides correctness, plus `EvidenceFormatError`. Everything that parses a
+document or starts a program lives in `tests/job_corpus/adapters/`:
+`toml_source.py` scans supplied text for a carriage return that `tomllib` would
+normalize away, `toml_values.py` and `toml_jobs.py` walk the schema, and
+`process_runner.py` materializes inputs and runs a child.
+
+`toml_jobs.load_job(document_text, relative)` decodes one document supplied as
+text; `toml_jobs.load_jobs(corpus_root)` is the only function that reads files,
+globbing `jobs/<job-id>/job.toml` with `newline=""` so the source scan still
+sees a carriage return.
+
+`comparison.compare_outcome` answers whether stdout and exit status agree under
+a `Comparison`; `comparison.evaluate_agreement` classifies a case against its
+divergence declarations, and reports a declared divergence that now agrees as
+stale. `audit.verify_case(job, implementation, case, runner)` runs one case
+through the port and keeps the observation, the classification, and any
+reference diagnostic.
+`audit.audit_corpus(jobs, register, task_ids, findings_text)` takes loaded
+values only and returns an `AuditReport` of ordered findings with a separate
+contract verdict.
+
+Every loader failure is an `EvidenceFormatError` carrying the corpus-relative
+path and the dotted TOML key, rendered as `<path>: <key>: <message>`. A defect
+in the document as a whole, such as invalid TOML or an unknown root key, keeps
+the empty key position, so it reads `job.toml: : invalid TOML: …`. `schema` is
+version 1 and is compared against an integer constant: Python makes `True == 1`
+and `1.0 == 1`, so a boolean or float version is refused rather than read as
+version 1.
+
+`ProcessRunner` always passes an argument list, never a shell, and gives each
+child an explicit environment allowlist: a reference runs under
+`sys.executable -I`, and the awk and shell alternatives under `LC_ALL=C`.
+Standard input is supplied explicitly, and each run has a ten-second default
+timeout that is reported as a timed-out observation rather than raised.
+`awk_version` probes `-W version` and then `--version` with standard input
+closed, a ten-second timeout, and the same `PATH`/`LC_ALL` allowlist; a probe
+that fails, times out, or prints nothing yields no banner rather than raising.
+It accepts an injectable launcher, so every outcome is testable without a host
+awk. These two are the only places in the harness that start another program.
+
+`JOB_CORPUS_AWK` pins the awk the corpus executes; without it the first `awk` on
+`PATH` is used. With neither, the alternative tests skip locally and fail when
+`CI` is set, so a hosted run cannot quietly lose its awk coverage.
+`tests/conftest.py` resolves and probes the awk once in `pytest_configure`,
+stores the executable, banner, and pin status in the session stash, and the
+report header formats those stored facts: discovery and the probe have a narrow
+injectable seam, and rendering runs nothing.
 
 ## Automation scripts
 
@@ -150,6 +257,42 @@ and delete the broader copy: GitHub makes broader secrets available to
 workflows outside the environment, and the publisher falls back to them when
 the environment has none.
 
+### Coverage baseline
+
+The coverage ratchet compares each run with a committed, one-line percentage.
+`.coverage-baseline-v2.python` records the Python line coverage measured on the
+branch that introduced the representative job corpus. The earlier
+`.coverage-baseline.python` was seeded at 98.88% by the near-empty scaffold on
+`main`, and the harness could not hold that figure once real test code existed.
+Both `.github/workflows/ci.yml` and `.github/workflows/coverage-main.yml` pass
+the new file as `baseline-python-file`, and `tests/test_workflow_contracts.py`
+holds both workflows to that path.
+
+The shared coverage action derives its baseline cache version from the
+configured baseline paths, so naming a new path restores no cached archive and
+starts the ratchet from the committed figure. That is the supported way to
+bootstrap a baseline: add a versioned file (`-v2`, `-v3`, and so on), point
+every ratchet workflow at it, and commit the measured value in the same change.
+Do not rewrite the previous baseline in place: its cache entry would still
+match and would override the committed value. No workflow may name a retired
+path again.
+
+Re-measure with the hosted command before committing a new baseline:
+
+```sh
+uv run --with slipcover python -m slipcover --branch --xml \
+  --out coverage.xml -m pytest -v -n auto
+```
+
+Filter the report to the first-party directories before counting. The XML
+records every imported file, and an existing project `.venv` can appear because
+`uv run --with` adds it to the import path, while the action's private
+`.venv-coverage` does not appear in its report. Count `<line>` elements under
+`<class>` entries whose `filename` starts with `pokie/`, `scripts/`, or
+`tests/`, then quantize the covered-to-total ratio half-up to two decimal
+places. The action tolerates a one-point fall, so ordinary runner variation
+does not fail a pull request.
+
 ### Hosted CI and act diagnostics
 
 The Act validation workflow pins `act` v0.2.89 and checks the release archive's
@@ -176,16 +319,16 @@ show these diagnostics alongside passing jobs:
   JavaScript actions and their dependencies. Keep the warning visible rather
   than filtering it broadly.
 - The pinned
-  [shared coverage action](https://github.com/leynos/shared-actions/blob/18bed1ca49a6de3d8882bd72635a32ae3f023d57/.github/actions/generate-coverage/action.yml#L220)
+  [shared coverage action](https://github.com/leynos/shared-actions/blob/5a99aed78ce68dcebd3052b75c31e6f173162b1e/.github/actions/generate-coverage/action.yml#L345)
   caches `~/.cache/uv`, while setup-uv supplies a different effective
   `UV_CACHE_DIR`. That mismatch can omit the cache. Its restore and post-job
   save also reserve the same key; an explicit save can succeed before the
   post-job reservation warning. Both are cache issues owned by
   `leynos/shared-actions`. They affect caching, not the coverage ratchet
   result; see the action's
-  [restore](https://github.com/leynos/shared-actions/blob/18bed1ca49a6de3d8882bd72635a32ae3f023d57/.github/actions/generate-coverage/action.yml#L88)
+  [restore](https://github.com/leynos/shared-actions/blob/5a99aed78ce68dcebd3052b75c31e6f173162b1e/.github/actions/generate-coverage/action.yml#L246)
   and
-  [save](https://github.com/leynos/shared-actions/blob/18bed1ca49a6de3d8882bd72635a32ae3f023d57/.github/actions/generate-coverage/action.yml#L275)
+  [save](https://github.com/leynos/shared-actions/blob/5a99aed78ce68dcebd3052b75c31e6f173162b1e/.github/actions/generate-coverage/action.yml#L450)
   steps.
 - Act may not resolve GitHub's synthetic pull-request merge commit to a branch
   or tag because checkout leaves it detached. Identify the tested candidate

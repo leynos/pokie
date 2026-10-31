@@ -70,6 +70,10 @@ jobs:
           artefact-name-suffix: pokie
           with-ratchet: 'true'
           publish-artefact: 'false'
+          # Same committed baseline as `ci.yml`. The cache version derives
+          # from the baseline paths, so `main` starts from this measurement
+          # rather than the scaffold-era 98.88%.
+          baseline-python-file: .coverage-baseline-v2.python
 
       # The expression is evaluated before the shell starts, so this step binds
       # no secret and holds no shell conditional.
