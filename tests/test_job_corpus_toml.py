@@ -6,9 +6,6 @@ right one. ``schema`` is compared against an integer constant, and Python makes
 ``True == 1`` and ``1.0 == 1``, so a version written as a boolean or a float
 would otherwise load as version 1 — a malformed corpus file accepted in
 silence, which is the failure the loader exists to prevent.
-
-The suite grows with EP-M2, which adds the rest of LEM-LOAD-1's domain: input
-encodings, missing and unknown keys, and unknown enum members.
 """
 
 import pathlib
@@ -193,15 +190,18 @@ _REFUSED = [
     pytest.param(_CRLF_TEXT, id="basic-crlf"),
     pytest.param("inputs = [{ name = 'r', text = '''a\rb''' }]", id="literal-cr"),
     pytest.param('inputs = [{ "text" = """a\r\nb""" }]', id="quoted-key"),
+    pytest.param('"\\u0074ext" = """a\r\nb"""\n', id="escaped-key"),
     pytest.param('a = 1\ninputs = [{ text = """c\r\nd""" }]', id="after-plain-key"),
     pytest.param('x = """a\\"""b"""\ntext = """c\r\nd"""', id="after-escape"),
     pytest.param('x = """a""""\ntext = """c\r\nd"""', id="after-trailing-quote"),
     pytest.param('x = "a#b\\"c"\ntext = """d\r\ne"""', id="after-hash"),
+    pytest.param('x = """a\\\\"""\ntext = """c\r\nd"""', id="after-backslash"),
+    pytest.param('x = """a\\""""\ntext = """c\r\nd"""', id="after-escaped-quote"),
 ]
-"""Sources the scan must refuse: a ``text`` string holding a physical CR.
+"""Spellings the loader must refuse: a ``text`` string holding a physical CR.
 
-The literals before the later cases also prove an earlier one does not
-misalign the scan.
+The literals and keys before the later cases also prove that an earlier
+spelling, escape included, does not misalign the scan.
 """
 
 _ACCEPTED = [
@@ -217,9 +217,9 @@ _ACCEPTED = [
 
 @pytest.mark.parametrize("source", _REFUSED)
 def test_a_multiline_text_holding_a_carriage_return_is_refused(source: str) -> None:
-    """The scan must refuse a multiline ``text`` before `tomllib` can hide the CR."""
+    """The loader must refuse a multiline ``text`` before `tomllib` can hide the CR."""
     with pytest.raises(ports.EvidenceFormatError) as raised:
-        toml_source.reject_multiline_text_carriage_returns(source, RELATIVE)
+        toml_jobs.load_job(source, RELATIVE)
     assert raised.value.path == RELATIVE, source
     assert raised.value.key == "cases.inputs.text", source
 

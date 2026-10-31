@@ -1,11 +1,11 @@
 """Refuse carriage returns that a multiline TOML string would hide.
 
 `tomllib` normalizes physical CRLF to LF inside multiline strings, so a
-carriage return authored there never reaches the decoded value that
-`job_corpus.adapters.toml_values` checks. This scan reads the raw text, before
-parsing, and holds a ``text`` input to the same ``hex`` requirement.
+carriage return authored there never reaches the decoded value. This scan reads
+raw source before parsing and holds ``text`` to the ``hex`` requirement.
 """
 
+import tomllib
 import typing as typ
 
 from job_corpus.ports import EvidenceFormatError
@@ -17,7 +17,6 @@ if typ.TYPE_CHECKING:
 _BARE_KEY = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
 _SPACE = " \t\r\n"
 _CONTENT_QUOTES = 2
-"""How many quotes before a closing delimiter may belong to the content."""
 _MESSAGE = "carriage returns need the 'hex' encoding"
 
 
@@ -27,8 +26,7 @@ def reject_multiline_text_carriage_returns(
     r'''Refuse a ``text`` input whose multiline string holds a carriage return.
 
     Scanning the raw source is the point: parsing is what normalizes the
-    carriage return away. ``text`` occurs only under ``cases.inputs``, so the
-    diagnostic names that key.
+    carriage return away. ``text`` occurs only under ``cases.inputs``.
 
     Raises
     ------
@@ -74,8 +72,7 @@ def _literal_end(document_text: str, start: int) -> int:
     """Return the index just past the literal opening at ``start``.
 
     Basic strings honour backslash escapes and literals have none. An
-    unterminated literal ends at the document's end, leaving the report to
-    `tomllib`.
+    unterminated literal ends at the document's end, for `tomllib` to report.
 
     Returns
     -------
@@ -90,9 +87,10 @@ def _literal_end(document_text: str, start: int) -> int:
         character = document_text[index]
         if character == "\\" and quote == '"':
             index += 2
-        elif character == "\n" and not multiline:
+            continue
+        if character == "\n" and not multiline:
             return index
-        elif document_text.startswith(delimiter, index):
+        if document_text.startswith(delimiter, index):
             return _closing_end(document_text, index) if multiline else index + 1
         index += 1
     return index
@@ -101,8 +99,7 @@ def _literal_end(document_text: str, start: int) -> int:
 def _closing_end(document_text: str, start: int) -> int:
     """Return the index just past a closing delimiter and its content quotes.
 
-    TOML lets one or two quotes before the delimiter belong to the content, so
-    a run of four or five quotes closes the string after all of them.
+    TOML lets up to two quotes before the delimiter belong to the content.
 
     Returns
     -------
@@ -120,8 +117,8 @@ def _closing_end(document_text: str, start: int) -> int:
 def _names_text(document_text: str, start: int) -> bool:
     """Return whether the literal at ``start`` is assigned to the key ``text``.
 
-    A TOML key may be bare or quoted, and both spellings name the same key, so
-    the quoted spelling must be refused too.
+    A quoted basic-string key decodes escapes, so one spelling ``text`` with an
+    escaped ``t`` also names it; raw-source comparison would miss that.
 
     Returns
     -------
@@ -133,7 +130,14 @@ def _names_text(document_text: str, start: int) -> bool:
         return False
     key = before[:-1].rstrip(_SPACE)
     if key.endswith(('"', "'")):
-        key = key[key.rfind(key[-1], 0, len(key) - 1) + 1 : -1]
+        key = key[key.rfind(key[-1], 0, len(key) - 1) :]
     else:
         key = key[len(key.rstrip(_BARE_KEY)) :]
-    return key == "text"
+    try:
+        document = tomllib.loads(f"{key} = 0")
+    except tomllib.TOMLDecodeError:
+        return False
+    name = ""
+    while isinstance(document, dict) and len(document) == 1:
+        ((name, document),) = document.items()
+    return name == "text"

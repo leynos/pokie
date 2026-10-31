@@ -373,6 +373,34 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   and 4,794 net Python lines against limits of 45 and 4,800. CodeScene reports
   every touched file at code health 10.00, and the one duplication family the
   shared gate raised is a recorded, reasoned exception (see the Decision log).
+- [x] (2026-10-31) Hosted assessment follow-up (CodeRabbit reply 6545783852)
+  accepted items 1 (comparison sweep) and 3 (awk banner) as resolved and kept
+  item 2 open with two remaining scanner bypasses, both verified against source
+  and repaired here:
+  - `_names_text` stripped a quoted key's quotes but compared raw source, so a
+    quoted key that spells `text` with a unicode escape for one letter (valid
+    TOML naming the same key) was not refused.
+    The key is now decoded by `tomllib` and its leaf name compared, so any
+    spelling of the name is caught; an unreadable key is not `text`, because
+    the document parse refuses it moments later.
+  - `_literal_end` advanced `index` by two for an escape and then by one more
+    at the bottom of the loop, so an escaped backslash or quote immediately
+    before a closing delimiter consumed the delimiter's first quote and could
+    swallow the next multiline string's opener. The escape branch now
+    continues, advancing exactly once per iteration.
+
+  Both defects were reproduced red-first: the three new loader cases (escaped
+  key, escaped backslash, escaped quote) bypass the scanner at `b00c240` and
+  raise `EvidenceFormatError` with `cases.inputs.text` after the repair. The
+  whole refusal family now runs through `toml_jobs.load_job`, so these are
+  full-loader regressions rather than direct scans, with the accepted family
+  still exercising the scan alone. Fitting the repair inside the untouched
+  tolerance required reclaiming lines rather than raising it: prose in
+  `toml_source.py` was tightened and the test module's milestone-progress
+  paragraph moved to this plan. Final measurement outside
+  `tests/job_corpus/jobs/`: 26 Python files and 4,798 net Python lines, 44
+  files overall, against limits of 45 and 4,800. CodeScene keeps both touched
+  files at 10.00 and `cs delta origin/main` is clean.
 
 ## Surprises & discoveries
 
