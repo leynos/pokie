@@ -7,8 +7,12 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+    groups:
+      minor-and-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
     schedule:
-      interval: "weekly"
+      interval: "daily"
 
   # Enable version updates for Python (pip / requirements*.txt)
   - package-ecosystem: "pip"
@@ -17,5 +21,9 @@ updates:
     labels:
       - "dependencies"
       - "python"
+    groups:
+      minor-and-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
     schedule:
       interval: "daily"
