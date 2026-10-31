@@ -14,8 +14,6 @@ jobs:
     env:
       RUFF_VERSION: "0.16.8"
       TY_VERSION: "0.0.56"
-      CS_ACCESS_TOKEN: ${{ secrets.CS_ACCESS_TOKEN }}
-      CODESCENE_CLI_SHA256: ${{ vars.CODESCENE_CLI_SHA256 }}
 
     steps:
       - name: Check out repository
@@ -93,10 +91,19 @@ jobs:
       # `project-url: https://api.codescene.io/v2/projects/<id>`.
 
       - name: Test and Measure Coverage
-        if: ${{ github.event_name == 'pull_request' }}
-        uses: leynos/shared-actions/.github/actions/generate-coverage@18bed1ca49a6de3d8882bd72635a32ae3f023d57
+        if: github.event_name == 'pull_request'
+        # Pin one interpreter in both lanes: generate-coverage builds its own
+        # venv with a bare `uv venv`, which takes whatever uv finds first.
+        env:
+          UV_PYTHON: '3.14'
+        uses: leynos/shared-actions/.github/actions/generate-coverage@5a99aed78ce68dcebd3052b75c31e6f173162b1e
         with:
+          python-source: ./pokie
           output-path: coverage.xml
           format: cobertura
           artefact-name-suffix: pokie
           with-ratchet: 'true'
+          publish-artefact: 'false'
+
+      - name: Check the CV-005 contracts
+        run: make test-workflow-contracts
