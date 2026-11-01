@@ -1100,6 +1100,20 @@ name it. The value matches the branch measurement of 2249/2294 first-party
 lines (98.0384%) with 194 passing tests, and the hosted ratchet computes the
 same figure from the same command.
 
+### Current validation record
+
+The 194-test measurement above is the historical acceptance evidence for the
+rebase onto `f4f4278` and is retained as history; it is not a claim about the
+current candidate. The candidate reviewed on 2026-11-01 is `06291f3`, and its
+own record is: all ten sequential gates pass (`check-fmt`, `lint`, `typecheck`,
+`test`, `markdownlint` including spelling, `nixie`, `audit`, `validate`,
+`test-workflow-contracts`, and `build`), with `make test` reporting **232
+passed** in 9.44 seconds. Evidence: the scrutineer's per-target logs under
+`/tmp/GATE2-<target>-1-1-1-establish-the-representative-job-corpus-and-decision-register.out`,
+and the hosted `lint-test` and `act-validation` checks on `06291f3`, both
+successful. The Markdown gates were re-run after the plan edits recorded in the
+revision note (`/tmp/GATE4-*`) and are green.
+
 ## Context and orientation
 
 The repository is a Python 3.14 project managed by `uv`. The package `pokie/`
@@ -2382,17 +2396,22 @@ tests/job_corpus/policy.py            pure validation policy
 tests/job_corpus/register_policy.py   register and evidence policy
 tests/job_corpus/comparison.py        compare_outcome, evaluate_agreement
 tests/job_corpus/audit.py             audit_corpus, verify_case
-tests/job_corpus/report.py            render_report
+tests/job_corpus/report.py            render_report  (planned; not yet implemented)
 tests/job_corpus/ports.py             ProgramRunner
 tests/job_corpus/vulture_whitelist.py names Vulture cannot see through TOML text
 tests/job_corpus/adapters/toml_jobs.py       load_jobs, EvidenceFormatError
-tests/job_corpus/adapters/markdown_docs.py   load_register, load_roadmap_task_ids
+tests/job_corpus/adapters/markdown_docs.py   load_register, load_roadmap_task_ids  (planned; not yet implemented)
 tests/job_corpus/adapters/process_runner.py  ProcessRunner, awk_version
 tests/job_corpus/jobs/<job-id>/       job.toml, program.pokie, reference.py, alternative.awk, alternative.sh
 tests/data/                           sample_job.toml, malformed_jobs.json, carriage_return_sources.json
 tests/conftest.py                     Hypothesis profiles; AwkFacts, collect_awk_facts, report_header_line; session fixtures
 tests/features/job_corpus.feature
 ```
+
+Every unlabelled entry in that layout exists in this candidate. `report.py` and
+`adapters/markdown_docs.py` are marked planned because they belong to the
+deferred report and register work (EP-M2's report, EP-M4's register), so naming
+them here records the intended boundary without claiming they are present.
 
 The awk the corpus runs is resolved once, at `pytest_configure`, and stored on
 the session stash under `AWK_FACTS_KEY` as an `AwkFacts` record.
@@ -2591,9 +2610,12 @@ the repository's cyclomatic-complexity limit is 8).
   guide's tested-example rule. No milestone, obligation, or acceptance
   criterion changed.
 - 2026-11-01: reviewed `4a90b28` and repaired its findings. The awk probe now
-  decodes with `errors="replace"` and reports an undecodable banner as no
-  banner; the `ty` configuration request was answered with evidence instead of
-  a change, because the whitelist module already resolves; and this plan
-  records the review, the raised file limit, the `tests/data/` case tables, and
-  the interface names the developer guide now relies on. Effect: same corpus
-  and same contracts, one fewer way for a host awk to break collection.
+  decodes with `errors="replace"`, so a banner that is not valid UTF-8 is read
+  with replacement characters rather than raising out of `pytest_configure`; a
+  probe that raises `UnicodeDecodeError` anyway is covered by the named failure
+  tuple and reports no banner. The `ty` configuration request was answered with
+  evidence instead of a change, because the whitelist module already resolves;
+  and this plan records the review, the raised file limit, the `tests/data/`
+  case tables, and the interface names the developer guide now relies on.
+  Effect: same corpus and same contracts, one fewer way for a host awk to break
+  collection.
