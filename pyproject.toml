@@ -350,7 +350,7 @@ also_copy = [
   "Makefile",
   "pyproject.toml",
   "docs/",
-  ".coverage-baseline-v2.python",
+  ".coverage-baseline-v3.python",
 ]
 pytest_add_cli_args_test_selection = ["tests/"]
 

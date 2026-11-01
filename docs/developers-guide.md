@@ -297,7 +297,9 @@ The shared coverage action derives its baseline cache version from the
 configured baseline paths, so naming a new path restores no cached archive and
 starts the ratchet from the committed figure. That is the supported way to
 bootstrap a baseline: add a versioned file (`-v2`, `-v3`, and so on), point
-every ratchet workflow at it, and commit the measured value in the same change.
+every ratchet workflow at it, name it in `[tool.mutmut].also_copy` so mutation
+runs carry the file into their isolated tree, and commit the measured value in
+the same change.
 Do not rewrite the previous baseline in place: its cache entry would still
 match and would override the committed value. No workflow may name a retired
 path again.

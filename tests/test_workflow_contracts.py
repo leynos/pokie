@@ -1,6 +1,7 @@
 """Tests for the externally visible GitHub workflow contracts."""
 
 import re
+import tomllib
 import typing as typ
 from pathlib import Path
 
@@ -211,6 +212,18 @@ def test_coverage_workflows_do_not_name_a_retired_baseline(
     text = path.read_text(encoding="utf-8")
     why = f"{workflow_name} must not name any of {RETIRED_BASELINE_FILES}"
     assert not any(retired in text for retired in RETIRED_BASELINE_FILES), why
+
+
+def test_mutation_copy_includes_the_committed_baseline() -> None:
+    """Mutmut runs the suite in an isolated tree, so the baseline must travel."""
+    pyproject = tomllib.loads(
+        (REPOSITORY / "pyproject.toml").read_text(encoding="utf-8")
+    )
+    copied = pyproject["tool"]["mutmut"]["also_copy"]
+    why = f"mutmut must copy {BASELINE_FILE} into its isolated tree"
+    assert BASELINE_FILE in copied, why
+    why = f"mutmut must not copy any of {RETIRED_BASELINE_FILES}"
+    assert not any(retired in copied for retired in RETIRED_BASELINE_FILES), why
 
 
 def test_committed_python_baseline_is_one_percentage_line() -> None:
