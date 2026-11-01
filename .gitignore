@@ -214,3 +214,6 @@ typos.toml
 
 # Verified Nose detector installed by df12-duplication.
 .tools/
+
+# Manifest lock held by the shared df12 tooling while it edits configuration.
+.pyproject.toml.df12.lock

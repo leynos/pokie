@@ -8,10 +8,10 @@ review-sized execution unit. It promises no dates.
 
 G1–G5 cover readable streaming, capture dispatch, semantic validation, library
 reuse, and observable failures. Proposed decisions live in
-`docs/adr-001-cpython-ast-lowering.md`,
-`docs/adr-002-execution-scope-and-lifecycle.md`, and
-`docs/adr-003-pattern-adapter-resolution.md`. All tasks remain unchecked:
-documentation is not an implementation milestone.
+`docs/adrs/adr-0001-lower-pokie-through-python-asts.md`,
+`docs/adrs/adr-0002-preserve-one-program-scope-and-ordered-lifecycle.md`, and
+`docs/adrs/adr-0003-resolve-adapters-through-an-explicit-registry.md`. All
+tasks remain unchecked: documentation is not an implementation milestone.
 
 ## 1. Establish falsifiable contracts
 
@@ -35,7 +35,7 @@ See terms-of-reference.md §§4–9 and pokie-design.md §§1–2.
     expected outcomes, alternatives, and assigned decision owners for Q1–Q8.
 - [ ] 1.1.2. Ratify the compiler and execution proposals against the corpus.
   - Requires 1.1.1.
-  - See pokie-design.md §§2–5 and ADRs 001–002.
+  - See pokie-design.md §§2–5 and ADRs 0001–0002.
   - Success: scope, input ownership, control transfer, binding visibility,
     and finalization are decided; counterexamples update the contracts.
 
@@ -79,7 +79,7 @@ pokie-design.md §§3–4, 7.
     original token before any user code executes.
 - [ ] 2.1.2. Lower the baseline IR to compiled Python in a persistent scope.
   - Requires 2.1.1.
-  - See pokie-design.md §§4.2, 7, and 10; ADR 001.
+  - See pokie-design.md §§4.2, 7, and 10; ADR 0001.
   - Success: imports, definitions, state, and ordered rule traces agree
     with the evaluator for bounded generated programs.
 - [ ] 2.1.3. Add the single-owner reader, fields, counters, and separator
@@ -97,7 +97,7 @@ carry later pattern features. See pokie-design.md §§4.3, 8–10.
 
 - [ ] 2.2.1. Implement record-level `next` and `exit` with normal finalization.
   - Requires 2.1.3.
-  - See pokie-design.md §§4.2–4.3, 10 and ADR 002.
+  - See pokie-design.md §§4.2–4.3, 10 and ADR 0002.
   - Success: nested loops and `finally` produce the specified trace;
     ordinary `break`/`continue` still target user loops.
 - [ ] 2.2.2. Implement inline/file CLI invocation and diagnostic translation.
@@ -149,7 +149,7 @@ pokie-design.md §§5, 10.
 
 - [ ] 3.2.1. Add isolated guard evaluation and binding commit.
   - Requires 3.1.3.
-  - See pokie-design.md §§5, 7, and 10; ADR 002.
+  - See pokie-design.md §§5, 7, and 10; ADR 0002.
   - Success: false guards discard candidate names, accepted names persist,
     exceptions propagate, and assignment expressions are diagnosed.
 - [ ] 3.2.2. Deliver capture/guard interaction scenarios and published examples.
@@ -171,11 +171,11 @@ This slice addresses G3 and tests the proposed extension boundary.
 
 This step asks whether the result protocol composes with transactional
 patterns. Its outcome fixes the catalogue and class-pattern resolution. See
-pokie-design.md §6 and ADR 003.
+pokie-design.md §6 and ADR 0003.
 
 - [ ] 4.1.1. Ratify and implement frozen registry resolution and tagged results.
   - Requires 3.2.2.
-  - See pokie-design.md §6, design-contracts.md §3, and ADR 003.
+  - See pokie-design.md §6, design-contracts.md §3, and ADR 0003.
   - Success: registered patterns use stable identities, expression calls
     stay ordinary, and `Match(None/False/0)` remain successes.
 - [ ] 4.1.2. Deliver `digits`, `hexstr`, `int`, and `float` adapters.
@@ -193,9 +193,9 @@ interface belongs in the developer guide. See pokie-design.md §6.
 
 - [ ] 4.2.1. Select and record the custom registration mechanism.
   - Requires 4.1.2.
-  - See pokie-design.md §6, design-contracts.md §3, and ADR 003.
+  - See pokie-design.md §6, design-contracts.md §3, and ADR 0003.
   - Success: a narrow registration spike exercises discovery, duplicate
-    names, qualified names, and phase ordering; ADR 003 records the result.
+    names, qualified names, and phase ordering; ADR 0003 records the result.
 - [ ] 4.2.2. Deliver the selected public registration interface and examples.
   - Requires 4.2.1.
   - See pokie-design.md §§6–7 and design-contracts.md §3.
@@ -293,7 +293,7 @@ silently changing v1. See pokie-design.md §§2, 9–11.
 - [ ] 6.2.1. Decide whether Rust acceleration or parallel execution is
       justified.
   - Requires 5.2.1 and 5.2.2.
-  - See pokie-design.md §§2, 10–11 and ADR 001.
+  - See pokie-design.md §§2, 10–11 and ADR 0001.
   - Success: profiles identify a worthwhile target; any proposal includes
     semantic equivalence, ordering/effects, and distribution costs.
 - [ ] 6.2.2. Decide whether dependency management or isolated execution belongs

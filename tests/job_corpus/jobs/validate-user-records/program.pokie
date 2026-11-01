@@ -1,0 +1,16 @@
+# Proposed pokie program: not executable, no interpreter exists yet.
+# Copied verbatim from docs/design-contracts.md §1.
+from collections import Counter
+
+start:
+    users = {}
+    rejected = Counter()
+
+when /user=(\w+) uid=(\S+)/:
+    case name, int(uid) if uid >= 0:
+        users[uid] = name
+    case name, bad_uid:
+        rejected[bad_uid] += 1
+
+end:
+    print(len(users), sum(rejected.values()))

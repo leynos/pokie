@@ -103,6 +103,14 @@ jobs:
           artefact-name-suffix: pokie
           with-ratchet: 'true'
           publish-artefact: 'false'
+          # The default path's cache entry was seeded from the near-empty
+          # scaffold at 98.88%, which the job-corpus harness cannot reach now
+          # that it carries test-only code. The cache version hashes the
+          # baseline paths, so a new path restores nothing and the ratchet
+          # starts from the committed measurement of this branch.
+          # `tests/test_workflow_contracts.py` holds both ratchet workflows to
+          # this path.
+          baseline-python-file: .coverage-baseline-v2.python
 
       - name: Check the CV-005 contracts
         run: make test-workflow-contracts

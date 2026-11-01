@@ -1,0 +1,22 @@
+{
+  "refused": {
+    "basic-crlf": "inputs = [{ name = \"records.log\", text = \"\"\"a\r\nb\"\"\" }]",
+    "literal-cr": "inputs = [{ name = 'r', text = '''a\rb''' }]",
+    "quoted-key": "inputs = [{ \"text\" = \"\"\"a\r\nb\"\"\" }]",
+    "escaped-key": "\"\\u0074ext\" = \"\"\"a\r\nb\"\"\"\n",
+    "after-plain-key": "a = 1\ninputs = [{ text = \"\"\"c\r\nd\"\"\" }]",
+    "after-escape": "x = \"\"\"a\\\"\"\"b\"\"\"\ntext = \"\"\"c\r\nd\"\"\"",
+    "after-trailing-quote": "x = \"\"\"a\"\"\"\"\ntext = \"\"\"c\r\nd\"\"\"",
+    "after-hash": "x = \"a#b\\\"c\"\ntext = \"\"\"d\r\ne\"\"\"",
+    "after-backslash": "x = \"\"\"a\\\\\"\"\"\ntext = \"\"\"c\r\nd\"\"\"",
+    "after-escaped-quote": "x = \"\"\"a\\\"\"\"\"\ntext = \"\"\"c\r\nd\"\"\""
+  },
+  "accepted": {
+    "multiline-lf": "inputs = [{ text = \"\"\"a\nb\n\"\"\" }]",
+    "in-a-comment": "# text = \"\"\"\ninputs = [{ text = \"a\" }]",
+    "not-a-value": "inputs = [\"\"\"a\r\nb\"\"\"]",
+    "another-key": "x = \"\"\"a\r\nb\"\"\"",
+    "no-key": "= \"\"\"a\r\nb\"\"\"",
+    "unterminated": "text = \"\"\"a"
+  }
+}

@@ -1,0 +1,167 @@
+[
+  {
+    "old": "schema = 1\n",
+    "new": "",
+    "key": "schema"
+  },
+  {
+    "old": "title = \"Reject sample records\"\n",
+    "new": "",
+    "key": "title"
+  },
+  {
+    "old": "schema = 1",
+    "new": "extra = 1\nschema = 1",
+    "key": ""
+  },
+  {
+    "old": "title = \"Reject sample records\"",
+    "new": "title = 7",
+    "key": "title"
+  },
+  {
+    "old": "goals = [\"G1\"]",
+    "new": "goals = \"G1\"",
+    "key": "goals"
+  },
+  {
+    "old": "goals = [\"G1\"]",
+    "new": "goals = [1]",
+    "key": "goals"
+  },
+  {
+    "old": "decisions = [\"Q1\", \"Q6\"]",
+    "new": "decisions = \"Q1\"",
+    "key": "decisions"
+  },
+  {
+    "old": "category = \"filtering\"",
+    "new": "category = \"unknown\"",
+    "key": "category"
+  },
+  {
+    "old": "program = { path = \"program.pokie\", args = [\"-F\", \"|\"] }",
+    "new": "program = 1",
+    "key": "program"
+  },
+  {
+    "old": "kind = \"reference\"",
+    "new": "kind = \"unknown\"",
+    "key": "alternatives.kind"
+  },
+  {
+    "old": "path = \"reference.py\"",
+    "new": "path = \"/etc/passwd\"",
+    "key": "alternatives.path"
+  },
+  {
+    "old": "path = \"reference.py\"",
+    "new": "path = \"../escape.py\"",
+    "key": "alternatives.path"
+  },
+  {
+    "old": "path = \"program.pokie\"",
+    "new": "path = \"../../outside.pokie\"",
+    "key": "program.path"
+  },
+  {
+    "old": "kind = \"prior-art\"",
+    "new": "kind = \"unknown\"",
+    "key": "alternatives.kind"
+  },
+  {
+    "old": "tool = \"PAWK\"",
+    "new": "tool = 7",
+    "key": "alternatives.tool"
+  },
+  {
+    "old": "description = \"pawk -B with a regex filter.\"",
+    "new": "",
+    "key": "alternatives.description"
+  },
+  {
+    "old": "tool = \"PAWK\"",
+    "new": "colour = \"red\"\ntool = \"PAWK\"",
+    "key": "alternatives"
+  },
+  {
+    "old": "id = \"OBS-01\"",
+    "new": "id = 7",
+    "key": "observations.id"
+  },
+  {
+    "old": "kind = \"ambiguity\"",
+    "new": "kind = \"unknown\"",
+    "key": "observations.kind"
+  },
+  {
+    "old": "contracts = [\"DC-2\"]",
+    "new": "contracts = [1]",
+    "key": "observations.contracts"
+  },
+  {
+    "old": "questions = [\"Q3\"]",
+    "new": "questions = [\"Q9\"]",
+    "key": "observations.questions"
+  },
+  {
+    "old": "questions = [\"Q3\"]",
+    "new": "questions = 1",
+    "key": "observations.questions"
+  },
+  {
+    "old": "summary = \"The contract does not say whether empty input is a failure.\"",
+    "new": "",
+    "key": "observations.summary"
+  },
+  {
+    "old": "id = \"sample-job\"",
+    "new": "id = \"different-job\"",
+    "key": "id"
+  },
+  {
+    "old": "inputs = [{ name = \"records.log\", text = \"ERROR a\\n\" }]",
+    "new": "inputs = 1",
+    "key": "cases.inputs"
+  },
+  {
+    "old": "inputs = [{ name = \"records.log\", text = \"ERROR a\\n\" }]",
+    "new": "inputs = [1]",
+    "key": "cases.inputs"
+  },
+  {
+    "old": "text = \"ERROR a\\n\"",
+    "new": "text = \"a\\r\\n\"",
+    "key": "cases.inputs.text"
+  },
+  {
+    "old": "text = \"ERROR a\\n\"",
+    "new": "hex = \"not hex\"",
+    "key": "cases.inputs.hex"
+  },
+  {
+    "old": ", text = \"ERROR a\\n\"",
+    "new": "",
+    "key": "cases.inputs"
+  },
+  {
+    "old": "text = \"ERROR a\\n\"",
+    "new": "text = \"a\", hex = \"61\"",
+    "key": "cases.inputs"
+  },
+  {
+    "old": "exit_status = 0, ",
+    "new": "",
+    "key": "cases.expected.exit_status"
+  },
+  {
+    "old": "exit_status = 0",
+    "new": "exit_status = true",
+    "key": "cases.expected.exit_status"
+  },
+  {
+    "old": "schema = 1",
+    "new": "schema = [",
+    "key": ""
+  }
+]

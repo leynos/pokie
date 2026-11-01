@@ -200,11 +200,12 @@ be settled before the dependent release or extension capabilities ship.
 Vocabulary additions are recorded in `docs/context.md`.
 
 Architecture candidates have separate proposed records:
-`docs/adr-001-cpython-ast-lowering.md`,
-`docs/adr-002-execution-scope-and-lifecycle.md`, and
-`docs/adr-003-pattern-adapter-resolution.md`. Distribution remains an ADR
-candidate until Q2 has evidence. These records explain mechanisms without
-turning the terms of reference into an architecture specification.
+`docs/adrs/adr-0001-lower-pokie-through-python-asts.md`,
+`docs/adrs/adr-0002-preserve-one-program-scope-and-ordered-lifecycle.md`, and
+`docs/adrs/adr-0003-resolve-adapters-through-an-explicit-registry.md`.
+Distribution remains an ADR candidate until Q2 has evidence. These records
+explain mechanisms without turning the terms of reference into an architecture
+specification.
 
 [^1]: Supplied conversation, model `gpt-5-6-thinking`, 2026-08-05
     14:05:47 +01:00. Original conversation:
