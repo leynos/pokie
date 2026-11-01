@@ -1,7 +1,7 @@
 """Pure decision-register policy, exported through job_corpus.policy.
 
-This feature module validates the corpus register only. It shares no document
-parsing or product governance abstraction with runtime code.
+It validates the corpus register only, sharing no parsing or governance
+abstraction with runtime code.
 """
 
 import collections
@@ -18,7 +18,6 @@ def _row_task_errors(
     Returns
     -------
     tuple[str, ...]
-        The invalid values or repeated identifiers.
     """
     unknown = {*row.evidence_tasks, row.decide_before, *row.gates} - set(tasks)
     unknown.discard("gap")
@@ -39,7 +38,6 @@ def _row_errors(row: model.RegisterEntry, tasks: cabc.Sequence[str]) -> tuple[st
     Returns
     -------
     tuple[str, ...]
-        The invalid values or repeated identifiers.
     """
     errors = list(_row_task_errors(row, tasks))
     if row.owner.strip().casefold() in {"", "tbd", "unassigned", "-"}:
@@ -55,8 +53,6 @@ def find_register_gaps(
     register: cabc.Sequence[model.RegisterEntry], task_ids: cabc.Sequence[str]
 ) -> tuple[findings.Finding, ...]:
     """Validate question coverage, owners, task references, and deadlines.
-
-    For example, an empty register reports missing questions Q1 through Q8.
 
     Parameters
     ----------
@@ -100,8 +96,6 @@ def find_evidence_mismatches(
     jobs: cabc.Sequence[model.CorpusJob], register: cabc.Sequence[model.RegisterEntry]
 ) -> tuple[findings.Finding, ...]:
     """Check register/job agreement and observation question containment.
-
-    For example, ``all`` expands to all loaded job IDs before comparison.
 
     Parameters
     ----------
@@ -148,7 +142,6 @@ def _expanded_evidence(
     Returns
     -------
     set[str]
-        The detected names or expanded evidence identifiers.
     """
     if evidence == ("all",):
         return {job.job_id for job in jobs}

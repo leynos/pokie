@@ -1,19 +1,15 @@
 """Names that are live but invisible to static analysis.
 
-Vulture runs over `tests/` so that unused helpers are caught, but a corpus
-harness is full of names that no Python expression ever mentions. Vulture's
-scanner cannot see through either pattern this package relies on:
+Vulture runs over `tests/`, but this harness relies on names no Python
+expression mentions. The `StrEnum` vocabularies are a *wire format*: a member
+is reached when a `job.toml` string names it through `toml_values._member`,
+which calls `enum_type(text)`, so `Failure.GUARD` stays unreported until an
+expression spells it. Some descriptive fields are read only by later report
+and documentation checks.
 
-- The `StrEnum` vocabularies are a *wire format*. A member is reached when a
-  `job.toml` string names it, through `toml_values._member`, which calls
-  `enum_type(text)`, so `Failure.GUARD` stays unreported until some expression
-  spells it literally.
-- Some descriptive fields are read only by the report and documentation
-  checks that later milestones add.
-
-Each attribute access below is real source, so `ty` fails the build if a name
-is renamed or deleted, and the list cannot drift out of step with the model.
-Entries are *removed* as consuming code lands, never added speculatively:
+Each access below is real source, so `ty` fails if a name is renamed or
+deleted, and the list cannot drift from the model. Entries are *removed* as
+consuming code lands, never added speculatively:
 `tests/test_job_corpus_dead_code.py` fails when Vulture no longer reports one.
 """
 

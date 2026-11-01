@@ -50,6 +50,21 @@
     "key": "alternatives.kind"
   },
   {
+    "old": "path = \"reference.py\"",
+    "new": "path = \"/etc/passwd\"",
+    "key": "alternatives.path"
+  },
+  {
+    "old": "path = \"reference.py\"",
+    "new": "path = \"../escape.py\"",
+    "key": "alternatives.path"
+  },
+  {
+    "old": "path = \"program.pokie\"",
+    "new": "path = \"../../outside.pokie\"",
+    "key": "program.path"
+  },
+  {
     "old": "kind = \"prior-art\"",
     "new": "kind = \"unknown\"",
     "key": "alternatives.kind"

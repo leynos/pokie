@@ -1,7 +1,7 @@
-"""Corpus domain types.
+"""Corpus domain types of frozen dataclasses and `StrEnum` members.
 
-Frozen dataclasses and `StrEnum` members keep policy pure; the types mirror
-`job.toml` (ADR 0004), and only `job_corpus.adapters.toml_jobs` loads them.
+They keep policy pure, mirror `job.toml` (ADR 0004), and only
+`job_corpus.adapters.toml_jobs` loads them.
 """
 
 import dataclasses
@@ -77,8 +77,8 @@ class CaseTag(enum.StrEnum):
 class ScriptKind(enum.StrEnum):
     """The implementations a case can be run against.
 
-    `REFERENCE` is the oracle: it deliberately models proposed pokie semantics.
-    `POKIE` is reserved for roadmap task 2.1.3 and has no script yet.
+    `REFERENCE` is the oracle, modelling proposed pokie semantics; `POKIE` is
+    reserved for roadmap task 2.1.3 and has no script yet.
     """
 
     REFERENCE = "reference"
@@ -107,8 +107,8 @@ class Comparison(enum.StrEnum):
 class ObservationKind(enum.StrEnum):
     """Why an observation was recorded against the corpus.
 
-    `CONTRADICTION` is the falsification output of phase 1: it flips the audit
-    verdict to `revise-contracts` and blocks ratification.
+    `CONTRADICTION` is phase 1's falsification output: it flips the verdict to
+    `revise-contracts` and blocks ratification.
     """
 
     CONTRADICTION = "contradiction"
@@ -130,9 +130,9 @@ class EvidenceStatus(enum.StrEnum):
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class InputFile:
-    """One input the runner materializes before starting an implementation.
+    """One input the runner materializes.
 
-    The content is written verbatim, with no newline normalization.
+    It is written verbatim, without newline normalization.
     """
 
     name: str
@@ -177,7 +177,7 @@ class ObservedOutcome:
 class Divergence:
     """A case where an alternative is expected to disagree with the oracle.
 
-    Tests fail if a declared divergence agrees; stale claims cannot hide errors.
+    Tests fail if a declared divergence agrees, so stale claims cannot hide.
     """
 
     case_id: str
@@ -211,8 +211,8 @@ class ScriptImplementation:
 class DescribedAlternative:
     """An alternative the corpus names but does not execute.
 
-    Workarounds and prior art such as PAWK need their own runtimes, so they
-    are recorded as prose, not a script diff, for roadmap task 5.2.2.
+    Workarounds and prior art such as PAWK need their own runtimes, so
+    roadmap task 5.2.2 records them as prose, not a script diff.
     """
 
     kind: DescribedKind
@@ -252,7 +252,7 @@ class JobCase:
 class ProposedProgram:
     """A pokie program that is specified but not executable.
 
-    The path is recorded so `docs/job-corpus.md` links to the real file.
+    Its path lets `docs/job-corpus.md` link to the real file.
     """
 
     path: pathlib.PurePosixPath

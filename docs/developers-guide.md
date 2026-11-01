@@ -154,6 +154,11 @@ text; `toml_jobs.load_jobs(corpus_root)` is the only function that reads files,
 globbing `jobs/<job-id>/job.toml` with `newline=""` so the source scan still
 sees a carriage return.
 
+A `path` in `job.toml` is resolved against the job directory that names it, and
+is refused if it is absolute or contains a `..` component. Joining either would
+run a script from outside the job, so the domain keeps a corpus-relative path
+that names exactly one file.
+
 `comparison.compare_outcome` answers whether stdout and exit status agree under
 a `Comparison`; `comparison.evaluate_agreement` classifies a case against its
 divergence declarations, and reports a declared divergence that now agrees as

@@ -10,9 +10,6 @@ def compare_outcome(
 ) -> bool:
     r"""Return whether stdout and status agree; a timeout never agrees.
 
-    For example, sorted-line comparison accepts ``b'b\na\n'`` for
-    ``b'a\nb\n'`` while retaining duplicate lines and final-newline bytes.
-
     Parameters
     ----------
     expected : model.ExpectedOutcome
@@ -25,7 +22,6 @@ def compare_outcome(
     Returns
     -------
     bool
-        Whether the observable outcome agrees.
     """
     if observed.timed_out or observed.exit_status != expected.exit_status:
         return False
@@ -44,9 +40,6 @@ def evaluate_agreement(
     observed: model.ObservedOutcome,
 ) -> findings.Agreement:
     """Classify agreement and declarations; an obsolete declaration is stale.
-
-    For example, an agreeing case with a declared divergence returns
-    ``Agreement.STALE_DIVERGENCE`` rather than silently hiding that claim.
 
     Parameters
     ----------

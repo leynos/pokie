@@ -1,16 +1,10 @@
 r"""Scalar coercion for ``job.toml`` documents.
 
-These naming helpers are internal to the ``job_corpus.adapters`` package:
-`job_corpus.adapters.toml_jobs` walks a schema, calling one helper per value.
-
-Coercion never defaults: a wrong-shaped value is a defect in the evidence, so
-a failure names the corpus-relative file and the dotted TOML key. Every
-diagnostic the module raises comes from `_fail`.
-
-Input bytes arrive as a single-line TOML basic string (``text``) or as
-hexadecimal (``hex``). A multiline ``text`` string is rejected by
-`job_corpus.adapters.toml_source` before parsing: `tomllib` normalizes
-``\r\n`` inside those, so a carriage return needs ``hex``.
+Internal to ``job_corpus.adapters``: `toml_jobs` walks a schema, one helper per
+value. Coercion never defaults, so a failure names the corpus-relative file
+and dotted key via `_fail`. Input bytes arrive as a single-line ``text`` string
+or as ``hex``; a multiline ``text`` holds a carriage return only through
+``hex``, which `toml_source` enforces before `tomllib` normalizes it away.
 """
 
 import enum
@@ -39,8 +33,7 @@ def _fail(where: Where, message: str) -> typ.NoReturn:
 
     Notes
     -----
-    A guard in a value-returning function is written ``return _fail(...)``:
-    the call never returns, so the returned expression is unreachable.
+    A guard is written ``return _fail(...)``, whose return is unreachable.
     """
     path, key = where
     raise EvidenceFormatError(message, path=path, key=key)
@@ -59,8 +52,7 @@ def _dotted(where: Where, name: str) -> Where:
     Returns
     -------
     Where
-        The same file, with the dotted key extended by ``name``. An empty key
-        becomes ``name`` rather than ``.name``.
+        The same file, with the key extended by ``name`` (bare if it was empty).
     """
     path, prefix = where
     return path, f"{prefix}.{name}" if prefix else name
@@ -93,8 +85,8 @@ def _no_unknown_keys(
 ) -> None:
     """Report keys the schema does not define at this position.
 
-    Every unknown key is reported at once, in sorted order, so that one
-    document always yields one report rather than one report per run.
+    Every unknown key is reported at once, in sorted order, one report per
+    document.
 
     Parameters
     ----------
@@ -133,8 +125,7 @@ def _text(value: object, where: Where) -> str:
 def _integer(value: object, where: Where) -> int:
     """Return an integer, rejecting booleans, or report the value as malformed.
 
-    The check is on the type because Python makes ``True == 1``: a boolean
-    would otherwise pass as an integer.
+    The check is on the type because Python makes ``True == 1``.
 
     Parameters
     ----------
@@ -259,7 +250,6 @@ def _required(table: dict[str, object], name: str, where: Where) -> object:
     Returns
     -------
     object
-        The key's decoded value.
     """
     if name not in table:
         _fail(_dotted(where, name), "expected the key to be present")
@@ -297,7 +287,6 @@ def _contents(table: dict[str, object], where: Where) -> bytes:
     Returns
     -------
     bytes
-        The input's exact content.
     """
     present = [name for name in ("text", "hex") if name in table]
     if len(present) != 1:
@@ -316,10 +305,10 @@ def _contents(table: dict[str, object], where: Where) -> bytes:
 def _corpus_path(name: str, where: Where) -> pathlib.PurePosixPath:
     """Resolve a path written relative to its own job directory.
 
-    A job names its scripts the way a reader of that directory would, and
-    domain values carry the corpus-relative path, so the runner never needs to
-    know which job a script belongs to. For example, ``reference.py`` in
-    ``jobs/example/job.toml`` resolves to ``jobs/example/reference.py``.
+    A job names its scripts relative to its own directory, so the runner need
+    not know the job; ``reference.py`` in ``jobs/example/job.toml`` resolves to
+    ``jobs/example/reference.py``. An absolute path or a ``..`` component is
+    refused, since either would run a script from outside the job.
 
     Parameters
     ----------
@@ -333,4 +322,8 @@ def _corpus_path(name: str, where: Where) -> pathlib.PurePosixPath:
     pathlib.PurePosixPath
         The path relative to the corpus root.
     """
-    return where[0].parent / pathlib.PurePosixPath(name)
+    path = pathlib.PurePosixPath(name)
+    if path.is_absolute() or ".." in path.parts:
+        message = f"expected a path in the job directory, not {name}"
+        _fail(_dotted(where, "path"), message)
+    return where[0].parent / path

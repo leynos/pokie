@@ -476,10 +476,41 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   rather than spent, and the modules that own them were left with their
   docstring contracts intact.
 - [x] (2026-11-01) Final measurement outside `tests/job_corpus/jobs/`: 26
-  Python files and 4,797 net Python lines, 45 files overall, against limits of
-  92 files and 4,800 net lines. The file limit was raised by the project owner
-  on this date to accommodate the data files; the net-line limit is unchanged
-  and this candidate sits three lines inside it.
+  Python files and 4,797 net Python lines, against limits of 92 files and 4,800
+  net lines. The file limit was raised by the project owner on this date to
+  accommodate the data files; the net-line limit is unchanged and this
+  candidate sits three lines inside it.
+- [x] (2026-11-01) The review of `7a6285b` (review `5726675170`) raised two
+  inline findings and one warning row; each was verified against the current
+  source before repair:
+  - The `toml_values` module docstring read as if every multiline `text` input
+    had to be written as `hex`. It now states the rule the scanner actually
+    applies: a multiline `text` is valid unless it holds a physical carriage
+    return, which `toml_source` rejects before parsing because `tomllib`
+    normalizes `\r\n` inside such a value.
+  - `_corpus_path` joined a job's `path` to the job directory without checking
+    it, so an absolute path discarded the directory and a `..` component
+    climbed out of it; either let a job execute a foreign script. It now
+    refuses both before joining, reporting the same corpus-relative file and
+    dotted key (`alternatives.path`, `program.path`) as every other loader
+    failure. Three mutations were added to `tests/data/malformed_jobs.json`
+    first, so the harness failed before the guard and passes after it. The
+    refusal is stated in the function's summary rather than a `Raises` section
+    because the module routes every diagnostic through `_fail`, and Ruff's
+    DOC502 cannot see that indirect raise.
+  - Testing (Property / Proof): the sorted-line comparison had only example
+    cases. Two Hypothesis tests now cover it: every permutation of a generated
+    record list agrees under `Comparison.SORTED_LINES`, and each of a changed
+    record's bytes, an added record, a missing final newline, a differing exit
+    status, and a timeout is rejected. Records are generated with newlines
+    mapped to carriage returns, so the "split on `\n` only" rule is exercised
+    by the same strategy, and the existing example tests are unchanged.
+  - Budget: the repairs pushed the candidate to 4,859 net Python lines, 59 over
+    the cap. Condensing docstring prose in eleven touched modules recovered the
+    overrun without dropping a section header, a parameter, a return, or a
+    raises entry, and without weakening a test. Final measurement: 26 Python
+    files, 4,792 net Python lines, and 51 files overall, against limits of 92
+    and 4,800.
 
 ## Surprises & discoveries
 
@@ -1104,15 +1135,23 @@ same figure from the same command.
 
 The 194-test measurement above is the historical acceptance evidence for the
 rebase onto `f4f4278` and is retained as history; it is not a claim about the
-current candidate. The candidate reviewed on 2026-11-01 is `06291f3`, and its
-own record is: all ten sequential gates pass (`check-fmt`, `lint`, `typecheck`,
-`test`, `markdownlint` including spelling, `nixie`, `audit`, `validate`,
-`test-workflow-contracts`, and `build`), with `make test` reporting **232
-passed** in 9.44 seconds. Evidence: the scrutineer's per-target logs under
-`/tmp/GATE2-<target>-1-1-1-establish-the-representative-job-corpus-and-decision-register.out`,
-and the hosted `lint-test` and `act-validation` checks on `06291f3`, both
-successful. The Markdown gates were re-run after the plan edits recorded in the
-revision note (`/tmp/GATE4-*`) and are green.
+current candidate. The candidate reviewed on 2026-11-01 is `7a6285b`, and the
+tree that records its repairs is gated as one candidate: all ten sequential
+gates pass (`check-fmt`, `lint`, `typecheck`, `test`, `markdownlint` including
+spelling, `nixie`, `audit`, `validate`, `test-workflow-contracts`, and
+`build`), with `make test` reporting **237 passed** in 8.08 seconds, and with
+`lint` reporting `interrogate` at 100%, `pylint` at 10.00/10, and clean
+`skylos`, duplication, `actionlint`, and `yamllint` results. Evidence: the
+scrutineer's per-target logs under
+`/tmp/GATE7-<target>-1-1-1-establish-the-representative-job-corpus-and-decision-register.out`.
+The earlier evidence for `06291f3` (232 passed, `/tmp/GATE2-*`) and the
+Markdown re-runs for its plan edits (`/tmp/GATE4-*`) are retained as history
+for those candidates, not as claims about this one. The Markdown gates were
+re-run after the plan edits below and are green.
+
+The file-count and net-line budget was re-measured on this tree with
+`git diff --numstat f4f4278 -- '*.py' ':!tests/job_corpus/jobs/**'`: 26 Python
+files and 4,792 net Python lines, against limits of 92 files and 4,800 lines.
 
 ## Context and orientation
 
@@ -2619,3 +2658,13 @@ the repository's cyclomatic-complexity limit is 8).
   case tables, and the interface names the developer guide now relies on.
   Effect: same corpus and same contracts, one fewer way for a host awk to break
   collection.
+- 2026-11-01: reviewed `7a6285b` and repaired its findings. The `toml_values`
+  module docstring now states the scanner's actual multiline `text` rule;
+  `_corpus_path` refuses an absolute path or a `..` component before joining,
+  so a job can only execute its own scripts; and two Hypothesis tests cover the
+  sorted-line comparison, both directions (permutations agree; changed bytes,
+  counts, terminator, status, and timeout are rejected). The developer guide
+  records the path rule. The docstring prose in eleven touched modules was
+  condensed to bring the candidate back inside the net-line budget. Effect:
+  same corpus, same acceptance criteria, and a loader that cannot run a foreign
+  script.

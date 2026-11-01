@@ -1,15 +1,12 @@
 """Load ``job.toml`` documents into corpus domain values.
 
 A job file is evidence, so the loader is strict: an unknown key, a missing
-table, or an unrecognized enum member fails with the job file and the TOML key
-rather than defaulting, because a corpus that silently ignored half a case
-would still pass its own tests.
-
-This module is the schema walk: it reads a document's tables in schema order
-and delegates each scalar to `job_corpus.adapters.toml_values`, which owns the
-``text``/``hex`` encodings, the ``where`` pair diagnostics carry, and `_fail`.
-
-Each ``Raises`` section names only the failures the function raises itself.
+table, or an unrecognized enum member fails with the job file and TOML key
+rather than defaulting, as a corpus that ignored half a case would still pass.
+This module is the schema walk: it reads a document's tables in order and
+delegates each scalar to `job_corpus.adapters.toml_values`, which owns the
+``text``/``hex`` encodings, the ``where`` diagnostic pair, and `_fail`. Each
+``Raises`` section names only the failures the function raises itself.
 """
 
 import pathlib
@@ -204,8 +201,7 @@ def _load_described(
 ) -> model.DescribedAlternative:
     """Load an alternative the corpus names but does not execute.
 
-    ``kind`` is the kind its ``kind`` key named; an absent ``tool`` becomes
-    the empty string that an unnamed status quo is written as.
+    An absent ``tool`` becomes the empty string of an unnamed status quo.
 
     Returns
     -------
@@ -350,8 +346,8 @@ def load_job(document_text: str, relative: pathlib.PurePosixPath) -> model.Corpu
 def load_jobs(corpus_root: pathlib.Path) -> tuple[model.CorpusJob, ...]:
     r"""Load every job in the corpus, ordered by directory name.
 
-    The order keeps test identifiers stable. ``newline=""`` is load-bearing:
-    universal newlines would erase the ``\r`` that `toml_source` must see.
+    Order keeps identifiers stable; ``newline=""`` preserves the ``\r`` that
+    `toml_source` must see, which universal newlines would erase.
 
     Parameters
     ----------

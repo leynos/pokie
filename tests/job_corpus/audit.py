@@ -1,7 +1,7 @@
 """Compose pure corpus policy and explicit case verification.
 
-The audit accepts loaded values; orchestration code owns file reads and child
-processes through the existing ProgramRunner port.
+The audit accepts loaded values; orchestration owns file reads and child
+processes through the ProgramRunner port.
 """
 
 import typing as typ
@@ -21,9 +21,6 @@ def audit_corpus(
     findings_text: str,
 ) -> findings.AuditReport:
     """Audit loaded evidence in stable kind/subject/message order.
-
-    For example, an empty corpus returns coverage and missing-question
-    findings even though its contradiction verdict is ``proceed``.
 
     Parameters
     ----------
@@ -62,9 +59,6 @@ def verify_case(
     runner: ProgramRunner,
 ) -> findings.CaseResult:
     """Run one case and preserve both its observation and comparison findings.
-
-    For example, a reference crash on an expected input error is rejected
-    unless stderr starts with ``input error:`` and stdout/status agree.
 
     Parameters
     ----------
@@ -114,7 +108,6 @@ def _reference_diagnostics(
     Returns
     -------
     tuple[findings.Finding, ...]
-        The findings for the supplied evidence.
     """
     if case.expected.failure is model.Failure.NONE:
         valid = observed.stderr == b""

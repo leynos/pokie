@@ -1,7 +1,7 @@
 r"""Run corpus implementations as child processes.
 
-The runner and `awk_version` alone start a program, by argument list and
-never a shell, with an explicit environment allowlist that fixes the locale.
+The runner and `awk_version` alone start a program by argument list, never a
+shell, with an environment allowlist that fixes the locale.
 """
 
 import dataclasses
@@ -38,7 +38,6 @@ def _inputs_by_name(case: model.JobCase) -> dict[str, model.InputFile]:
     Returns
     -------
     dict[str, model.InputFile]
-        The inputs keyed by name.
 
     Raises
     ------
@@ -93,8 +92,8 @@ def _materialize(
     Raises
     ------
     EvidenceFormatError
-        If an operand names no input, the case cannot feed standard input
-        from exactly one input, or its names are unusable (see `_inputs_by_name`).
+        If an operand names no input, standard input lacks exactly one input,
+        or the names are unusable (see `_inputs_by_name`).
     """
     by_name = _inputs_by_name(case)
     if not case.operands or case.operands == ("-",):
@@ -158,8 +157,7 @@ def awk_version(
 ) -> str:
     """Return the first version line ``executable`` prints, or ``""``.
 
-    mawk and gawk answer ``-W version`` while others accept only ``--version``;
-    standard input is closed so an awk cannot block, and failures return ``""``.
+    mawk and gawk answer ``-W version``, others only ``--version``.
 
     Parameters
     ----------
@@ -197,9 +195,8 @@ def awk_version(
 class ProcessRunner:
     """Run an implementation with a fixed command shape per script kind.
 
-    The reference runs under ``sys.executable -I`` so no user site directory,
-    ``PYTHON*`` variable, or checkout-relative module can change the oracle;
-    awk and shell runs use ``LC_ALL=C`` because comparison is by byte order.
+    The reference runs under ``sys.executable -I`` so no site or checkout
+    module can change the oracle; awk and shell runs use ``LC_ALL=C``.
 
     Attributes
     ----------
@@ -220,9 +217,6 @@ class ProcessRunner:
     ) -> model.ObservedOutcome:
         r"""Run one implementation over one case.
 
-        For example, a reference script that prints ``1 2`` and exits zero is
-        reported as ``ObservedOutcome(b"1 2\n", b"", 0, False)``.
-
         Parameters
         ----------
         implementation : model.ScriptImplementation
@@ -238,8 +232,8 @@ class ProcessRunner:
         Raises
         ------
         EvidenceFormatError
-            If the script is missing from the corpus, an operand names no
-            input, or the implementation kind cannot be run here.
+            If the script is missing, an operand names no input, or the kind
+            cannot be run here.
         """
         script = self.corpus_root / implementation.path
         if not script.is_file():
@@ -271,7 +265,6 @@ class ProcessRunner:
         Returns
         -------
         model.ObservedOutcome
-            The captured bytes, exit status, and timeout flag.
         """
         try:
             completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - argument list, no shell.
@@ -312,7 +305,6 @@ class ProcessRunner:
         Returns
         -------
         list[str]
-            The complete argument list.
 
         Raises
         ------
@@ -346,7 +338,7 @@ class ProcessRunner:
         Raises
         ------
         EvidenceFormatError
-            If this host has no awk, so the shortfall is reported, never agreement.
+            If this host has no awk, so a shortfall is reported, not agreement.
         """
         if self.awk_executable is None:
             message = "no awk is installed on this host, so the alternative cannot run"

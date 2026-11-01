@@ -1,9 +1,8 @@
 """Ports and error vocabulary the corpus harness depends on.
 
-The harness has exactly one port. Keeping it single is deliberate: the domain
-compares outcomes, and only the way an implementation is started can vary
-between the test suite, a future pokie runner (roadmap task 2.1.3), and any
-stand-in a unit test needs.
+The harness has exactly one port: the domain compares outcomes, and only the
+way an implementation is started varies between the test suite, a future pokie
+runner (roadmap task 2.1.3), and a unit test's stand-in.
 """
 
 import typing as typ
@@ -21,15 +20,12 @@ class EvidenceFormatError(Exception):
     test: a malformed job file, a script that does not exist, or an
     implementation kind nothing can run yet.
 
-    For example, loading a job file without a ``schema`` key fails with
-    ``jobs/example/job.toml: schema: expected the key to be present``.
-
     Attributes
     ----------
     path : pathlib.PurePosixPath
         The corpus-relative document the problem is in.
     key : str
-        The dotted TOML key, or an equivalent location, within that document.
+        The dotted TOML key, or an equivalent location, in that document.
     """
 
     def __init__(self, message: str, *, path: pathlib.PurePosixPath, key: str) -> None:
@@ -42,8 +38,7 @@ class EvidenceFormatError(Exception):
         path : pathlib.PurePosixPath
             The corpus-relative document the problem is in.
         key : str
-            The dotted TOML key, or an equivalent location, within that
-            document.
+            The dotted TOML key, or an equivalent location, in that document.
         """
         formatted = f"{path}: {key}: {message}"
         super().__init__(formatted)
@@ -54,8 +49,8 @@ class EvidenceFormatError(Exception):
 class ProgramRunner(typ.Protocol):
     """Runs one implementation of one case and reports what it did.
 
-    A runner never decides whether an outcome is correct; it reports bytes,
-    status, and timeouts, and `job_corpus.comparison` judges them.
+    A runner reports bytes, status, and timeouts; `job_corpus.comparison` judges
+    them.
     """
 
     def run(
@@ -73,7 +68,6 @@ class ProgramRunner(typ.Protocol):
         Returns
         -------
         model.ObservedOutcome
-            The captured output, exit status, and timeout flag.
 
         Raises
         ------

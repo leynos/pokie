@@ -1,6 +1,6 @@
 """Pure validation policy for loaded representative corpus evidence.
 
-Helpers take loaded values and roadmap order and read no working directory.
+Helpers read loaded values and roadmap order, never a working directory.
 """
 
 import collections
@@ -25,7 +25,6 @@ def _duplicates(values: cabc.Iterable[str]) -> tuple[str, ...]:
     Returns
     -------
     tuple[str, ...]
-        The invalid values or repeated identifiers.
     """
     return tuple(
         sorted(key for key, count in collections.Counter(values).items() if count > 1)
@@ -113,7 +112,6 @@ def find_coverage_gaps(
     Returns
     -------
     tuple[findings.Finding, ...]
-        The findings for the supplied evidence.
     """
     counts = collections.Counter(job.category for job in jobs)
     tags = {tag for job in jobs for case in job.cases for tag in case.tags}
@@ -143,7 +141,6 @@ def _job_identity_errors(job: model.CorpusJob) -> tuple[findings.Finding, ...]:
     Returns
     -------
     tuple[findings.Finding, ...]
-        The findings for the supplied evidence.
     """
     cases = {case.case_id for case in job.cases}
     errors = [
@@ -168,7 +165,6 @@ def _divergence_errors(
     Returns
     -------
     tuple[findings.Finding, ...]
-        The findings for the supplied evidence.
     """
     subject = str(script.path)
     errors = [
@@ -206,7 +202,6 @@ def find_identity_errors(
     Returns
     -------
     tuple[findings.Finding, ...]
-        The findings for the supplied evidence.
     """
     errors = [
         _identity(job_id, "duplicate job")
@@ -235,7 +230,6 @@ def find_failure_mismatches(
     Returns
     -------
     tuple[findings.Finding, ...]
-        The findings for the supplied evidence.
     """
     statuses = {model.Failure.NONE: 0, model.Failure.STATIC: 2}
     return tuple(
@@ -256,8 +250,6 @@ def find_undocumented_observations(
 ) -> tuple[findings.Finding, ...]:
     """Require every observation ID as a whole token in the findings text.
 
-    For example, ``OBS-010`` does not document observation ``OBS-01``.
-
     Parameters
     ----------
     jobs : cabc.Sequence[model.CorpusJob]
@@ -268,7 +260,6 @@ def find_undocumented_observations(
     Returns
     -------
     tuple[findings.Finding, ...]
-        The findings for the supplied evidence.
     """
     identifiers = set(re.findall(r"\bOBS-[0-9]+\b", findings_text))
     return tuple(

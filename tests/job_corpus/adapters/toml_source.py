@@ -1,8 +1,7 @@
 """Refuse carriage returns that a multiline TOML string would hide.
 
-`tomllib` normalizes CRLF to LF inside multiline strings, so a carriage return
-authored there never reaches the decoded value. This scan reads raw source,
-before parsing, and holds ``text`` to the ``hex`` requirement.
+`tomllib` normalizes CRLF to LF inside multiline strings, so such a return
+never reaches the decoded value; this scan reads raw source before parsing.
 """
 
 import tomllib
@@ -36,8 +35,7 @@ def reject_multiline_text_carriage_returns(
     Examples
     --------
     ``'inputs = [{ text = """a\r\nb""" }]'`` raises, naming
-    ``cases.inputs.text``; ``'inputs = [{ text = "a\\r\\nb" }]'`` is a
-    single-line string and never reaches this scan.
+    ``cases.inputs.text``; a single-line ``text`` never reaches this scan.
     '''
     for start, end in _multiline_spans(document_text):
         if "\r" in document_text[start:end] and _names_text(document_text, start):
@@ -102,7 +100,6 @@ def _closing_end(document_text: str, start: int) -> int:
     Returns
     -------
     int
-        The offset just past the closing run.
     """
     quote = document_text[start]
     end = start + 3
