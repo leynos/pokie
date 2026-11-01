@@ -511,6 +511,17 @@ changes the audit verdict from `proceed` to `revise-contracts`.
     raises entry, and without weakening a test. Final measurement: 26 Python
     files, 4,792 net Python lines, and 51 files overall, against limits of 92
     and 4,800.
+- [x] (2026-11-01) A diff review of that condensation found prose it had
+  dropped rather than merely shortened, so four repairs were restored on top of
+  `7a7cd92`: why `awk_version` closes standard input, the worked example in
+  `ProcessRunner.run`, that method's description of the observed triple, and the
+  `OBS-010` example in `find_undocumented_observations`. The deletions of the
+  repeated Returns sentence "The findings for the supplied evidence." were
+  kept, since the return type and the function name already carry it. The added
+  lines are offset by rendering the `test_outcome_comparison` table through
+  `_Observed` and `_Mode` shorthands, which keeps each row on one line;
+  `pytest` over the comparison, TOML, and boundary modules reports 97 passed.
+  The candidate measures 26 Python files and 4,797 net Python lines.
 
 ## Surprises & discoveries
 
@@ -1151,7 +1162,13 @@ re-run after the plan edits below and are green.
 
 The file-count and net-line budget was re-measured on this tree with
 `git diff --numstat f4f4278 -- '*.py' ':!tests/job_corpus/jobs/**'`: 26 Python
-files and 4,792 net Python lines, against limits of 92 files and 4,800 lines.
+files and 4,797 net Python lines, against limits of 92 files and 4,800 lines.
+The five lines gained over `7a7cd92` restore prose the docstring condensation
+had dropped without replacing: why `awk_version` closes standard input, the
+worked example in `ProcessRunner.run`, that method's `ObservedOutcome`
+description, and the `OBS-010` example in `find_undocumented_observations`.
+Those gains are offset by rendering the `test_outcome_comparison` table through
+`_Observed` and `_Mode` shorthands, which puts every row on one line.
 
 ## Context and orientation
 

@@ -2,9 +2,12 @@ r"""Scalar coercion for ``job.toml`` documents.
 
 Internal to ``job_corpus.adapters``: `toml_jobs` walks a schema, one helper per
 value. Coercion never defaults, so a failure names the corpus-relative file
-and dotted key via `_fail`. Input bytes arrive as a single-line ``text`` string
-or as ``hex``; a multiline ``text`` holds a carriage return only through
-``hex``, which `toml_source` enforces before `tomllib` normalizes it away.
+and dotted key via `_fail`.
+
+Input bytes arrive as a single-line ``text`` string or as ``hex``. A multiline
+``text`` is valid unless it holds a physical carriage return, which
+`toml_source` rejects before parsing: `tomllib` normalizes ``\r\n`` inside such
+a value, so only that case needs ``hex``.
 """
 
 import enum
@@ -125,7 +128,8 @@ def _text(value: object, where: Where) -> str:
 def _integer(value: object, where: Where) -> int:
     """Return an integer, rejecting booleans, or report the value as malformed.
 
-    The check is on the type because Python makes ``True == 1``.
+    The check is on the type: Python makes ``True == 1``, so a boolean would
+    pass a value test.
 
     Parameters
     ----------
@@ -250,6 +254,7 @@ def _required(table: dict[str, object], name: str, where: Where) -> object:
     Returns
     -------
     object
+        The key's decoded value.
     """
     if name not in table:
         _fail(_dotted(where, name), "expected the key to be present")
@@ -287,6 +292,7 @@ def _contents(table: dict[str, object], where: Where) -> bytes:
     Returns
     -------
     bytes
+        The input's exact content.
     """
     present = [name for name in ("text", "hex") if name in table]
     if len(present) != 1:

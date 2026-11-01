@@ -7,29 +7,21 @@ import pytest
 from hypothesis import strategies as st
 from job_corpus import comparison, findings, model
 
+# Shorthands that keep every row of the table below on one line.
+from job_corpus.model import Comparison as _Mode
+from job_corpus.model import ObservedOutcome as _Observed
+
 
 @pytest.mark.parametrize(
     ("observed", "mode", "agrees"),
     [
-        (
-            model.ObservedOutcome(b"a\nb\n", b"diagnostic", 0),
-            model.Comparison.EXACT,
-            True,
-        ),
-        (model.ObservedOutcome(b"b\na\n", b"", 0), model.Comparison.EXACT, False),
-        (model.ObservedOutcome(b"b\na\n", b"", 0), model.Comparison.SORTED_LINES, True),
-        (model.ObservedOutcome(b"a\nb", b"", 0), model.Comparison.SORTED_LINES, False),
-        (
-            model.ObservedOutcome(b"a\na\nb\n", b"", 0),
-            model.Comparison.SORTED_LINES,
-            False,
-        ),
-        (model.ObservedOutcome(b"a\nb\n", b"", 1), model.Comparison.EXACT, False),
-        (
-            model.ObservedOutcome(b"a\nb\n", b"", 0, timed_out=True),
-            model.Comparison.EXACT,
-            False,
-        ),
+        (_Observed(b"a\nb\n", b"diagnostic", 0), _Mode.EXACT, True),
+        (_Observed(b"b\na\n", b"", 0), _Mode.EXACT, False),
+        (_Observed(b"b\na\n", b"", 0), _Mode.SORTED_LINES, True),
+        (_Observed(b"a\nb", b"", 0), _Mode.SORTED_LINES, False),
+        (_Observed(b"a\na\nb\n", b"", 0), _Mode.SORTED_LINES, False),
+        (_Observed(b"a\nb\n", b"", 1), _Mode.EXACT, False),
+        (_Observed(b"a\nb\n", b"", 0, timed_out=True), _Mode.EXACT, False),
     ],
 )
 def test_outcome_comparison_preserves_observable_contract(

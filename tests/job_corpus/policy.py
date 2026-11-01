@@ -250,6 +250,8 @@ def find_undocumented_observations(
 ) -> tuple[findings.Finding, ...]:
     """Require every observation ID as a whole token in the findings text.
 
+    For example, ``OBS-010`` does not document observation ``OBS-01``.
+
     Parameters
     ----------
     jobs : cabc.Sequence[model.CorpusJob]

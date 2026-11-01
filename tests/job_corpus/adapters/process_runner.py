@@ -157,7 +157,8 @@ def awk_version(
 ) -> str:
     """Return the first version line ``executable`` prints, or ``""``.
 
-    mawk and gawk answer ``-W version``, others only ``--version``.
+    mawk and gawk answer ``-W version``, others only ``--version``; standard
+    input is closed so an awk cannot block.
 
     Parameters
     ----------
@@ -217,6 +218,9 @@ class ProcessRunner:
     ) -> model.ObservedOutcome:
         r"""Run one implementation over one case.
 
+        For example, a reference script that prints ``1 2`` and exits zero is
+        reported as ``ObservedOutcome(b"1 2\n", b"", 0, False)``.
+
         Parameters
         ----------
         implementation : model.ScriptImplementation
@@ -265,6 +269,7 @@ class ProcessRunner:
         Returns
         -------
         model.ObservedOutcome
+            The captured bytes, exit status, and timeout flag.
         """
         try:
             completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - argument list, no shell.
