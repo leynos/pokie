@@ -299,10 +299,9 @@ starts the ratchet from the committed figure. That is the supported way to
 bootstrap a baseline: add a versioned file (`-v2`, `-v3`, and so on), point
 every ratchet workflow at it, name it in `[tool.mutmut].also_copy` so mutation
 runs carry the file into their isolated tree, and commit the measured value in
-the same change.
-Do not rewrite the previous baseline in place: its cache entry would still
-match and would override the committed value. No workflow may name a retired
-path again.
+the same change. Do not rewrite the previous baseline in place: its cache entry
+would still match and would override the committed value. No workflow may name
+a retired path again.
 
 Re-measure with the hosted command before committing a new baseline:
 
