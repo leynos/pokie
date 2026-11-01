@@ -272,13 +272,26 @@ the environment has none.
 ### Coverage baseline
 
 The coverage ratchet compares each run with a committed, one-line percentage.
-`.coverage-baseline-v2.python` records the Python line coverage measured on the
-branch that introduced the representative job corpus. The earlier
+`.coverage-baseline-v3.python` records the Python line coverage measured with
+the same tooling both ratchet workflows install. The earlier
 `.coverage-baseline.python` was seeded at 98.88% by the near-empty scaffold on
 `main`, and the harness could not hold that figure once real test code existed.
-Both `.github/workflows/ci.yml` and `.github/workflows/coverage-main.yml` pass
-the new file as `baseline-python-file`, and `tests/test_workflow_contracts.py`
-holds both workflows to that path.
+`.coverage-baseline-v2.python` then recorded a figure measured on a developer's
+machine, where the Actionlint projection checks and the pinned duplication
+detector's source-area gate could run. Both `.github/workflows/ci.yml` and
+`.github/workflows/coverage-main.yml` pass the new file as
+`baseline-python-file`, and `tests/test_workflow_contracts.py` holds both
+workflows to that path.
+
+A skipped test still reports its module as imported, so the lines the skipped
+test itself covers drop out of the ratio. `coverage-main.yml` originally
+installed no tooling, so it skipped three suite entries that `ci.yml` runs, and
+the same commit measured 96.28% on `main` against 97.23% on its pull request —
+more than the one-point tolerance. Both ratchet workflows therefore install
+Actionlint and the duplication detector before the coverage step, and
+`tests/test_workflow_contracts.py` fails if either stops doing so or if the two
+Actionlint pins diverge. Keep the two provisioning steps in step when adding a
+test that probes for an external tool.
 
 The shared coverage action derives its baseline cache version from the
 configured baseline paths, so naming a new path restores no cached archive and

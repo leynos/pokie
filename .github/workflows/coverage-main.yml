@@ -60,6 +60,20 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86
 
+      # Match the test tooling `ci.yml` installs before its coverage run.
+      # Three suite entries probe for a tool that neither the coverage venv nor
+      # the runner image provides: the two Actionlint projection checks, and
+      # the pinned duplication detector's source-area gate. Without them those
+      # tests skip, and a skip drops the test's own covered lines from the
+      # report, so the first `main` run measured 96.28% against the 98.04%
+      # baseline and failed the ratchet. Both ratchet workflows must measure
+      # the same suite.
+      - name: Install the tools the suite probes for
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          make install-nose
+
       - name: Generate coverage
         env:
           UV_PYTHON: '3.14'
@@ -71,9 +85,9 @@ jobs:
           with-ratchet: 'true'
           publish-artefact: 'false'
           # Same committed baseline as `ci.yml`. The cache version derives
-          # from the baseline paths, so `main` starts from this measurement
-          # rather than the scaffold-era 98.88%.
-          baseline-python-file: .coverage-baseline-v2.python
+          # from the baseline paths, so `main` starts from the measurement
+          # this workflow reproduces, not an earlier environment's figure.
+          baseline-python-file: .coverage-baseline-v3.python
 
       # The expression is evaluated before the shell starts, so this step binds
       # no secret and holds no shell conditional.
