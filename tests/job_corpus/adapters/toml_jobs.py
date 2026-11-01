@@ -5,14 +5,11 @@ table, or an unrecognized enum member fails with the job file and the TOML key
 rather than defaulting, because a corpus that silently ignored half a case
 would still pass its own tests.
 
-This module is the schema walk: it reads a document's tables in the order the
-schema nests them and delegates each scalar to
-`job_corpus.adapters.toml_values`, which owns the ``text``/``hex`` encodings,
-the ``where`` pair every diagnostic carries, and `_fail`.
+This module is the schema walk: it reads a document's tables in schema order
+and delegates each scalar to `job_corpus.adapters.toml_values`, which owns the
+``text``/``hex`` encodings, the ``where`` pair diagnostics carry, and `_fail`.
 
-Every ``_load_*`` function takes the decoded ``value`` and ``where`` and
-reports a malformed value through `_fail` rather than defaulting; each
-``Raises`` section names only the failures the function raises itself.
+Each ``Raises`` section names only the failures the function raises itself.
 """
 
 import pathlib
@@ -83,12 +80,11 @@ _REQUIRED_OBSERVATION_KEYS = ("id", "kind", "summary")
 
 
 def _load_input(value: object, where: Where) -> model.InputFile:
-    """Load one named input file.
+    """Load one named input file, with its operand name and exact bytes.
 
     Returns
     -------
     model.InputFile
-        The input's operand name and exact bytes.
     """
     table = _table(value, where)
     _no_unknown_keys(table, _INPUT_KEYS, where)
@@ -100,12 +96,11 @@ def _load_input(value: object, where: Where) -> model.InputFile:
 
 
 def _load_expected(value: object, where: Where) -> model.ExpectedOutcome:
-    """Load a case's expected outcome.
+    """Load a case's expected standard output, exit status, and failure category.
 
     Returns
     -------
     model.ExpectedOutcome
-        The specified standard output, exit status, and failure category.
     """
     table = _table(value, where)
     _no_unknown_keys(table, _EXPECTED_KEYS, where)
@@ -118,13 +113,11 @@ def _load_expected(value: object, where: Where) -> model.ExpectedOutcome:
 
 
 def _load_case(value: object, where: Where) -> model.JobCase:
-    """Load one case, with its inputs, operands, and expected outcome.
+    """Load one case: operands, inputs, expected outcome, and earliest task.
 
     Returns
     -------
     model.JobCase
-        The case's identifier, tags, operands, inputs, expected outcome, and
-        the earliest roadmap task that could satisfy it.
     """
     table = _table(value, where)
     _no_unknown_keys(table, _CASE_KEYS, where)
@@ -148,8 +141,7 @@ def _load_program(value: object, where: Where) -> model.ProposedProgram:
     Returns
     -------
     model.ProposedProgram
-        The program's corpus-relative path, resolved against ``where``'s
-        file, and its fixed arguments.
+        Its corpus-relative path, resolved against ``where``'s file, and args.
     """
     table = _table(value, where)
     _no_unknown_keys(table, _PROGRAM_KEYS, where)
@@ -161,12 +153,11 @@ def _load_program(value: object, where: Where) -> model.ProposedProgram:
 
 
 def _load_divergence(value: object, where: Where) -> model.Divergence:
-    """Load one declared divergence between an alternative and the oracle.
+    """Load one declared divergence: the case it differs on, and why.
 
     Returns
     -------
     model.Divergence
-        The case the alternative is expected to differ on, and why.
     """
     table = _table(value, where)
     _no_unknown_keys(table, _DIVERGENCE_KEYS, where)
@@ -182,13 +173,11 @@ def _load_script(
 ) -> model.ScriptImplementation:
     """Load an executable alternative from its already-read ``table``.
 
-    ``kind`` is the kind its ``kind`` key named; absent optional keys default
-    to no arguments, exact comparison, and no divergences.
+    ``kind`` is the kind its ``kind`` key named; absent keys use defaults.
 
     Returns
     -------
     model.ScriptImplementation
-        The script, with its arguments, comparison mode, and divergences.
     """
     _no_unknown_keys(table, _SCRIPT_KEYS, where)
     _all_required(table, _REQUIRED_SCRIPT_KEYS, where)
@@ -221,7 +210,6 @@ def _load_described(
     Returns
     -------
     model.DescribedAlternative
-        The named alternative and its prose description.
     """
     _no_unknown_keys(table, _DESCRIBED_KEYS, where)
     _all_required(table, _REQUIRED_DESCRIBED_KEYS, where)
@@ -238,8 +226,7 @@ def _load_alternative(value: object, where: Where) -> model.Alternative:
     Returns
     -------
     model.Alternative
-        A script for an executable language, else the described alternative;
-        an unrecognized ``kind`` is reported through `_fail`.
+        A script for an executable language, else the described alternative.
     """
     table = _table(value, where)
     raw = _text(_required(table, "kind", where), _dotted(where, "kind"))
@@ -283,7 +270,6 @@ def _load_identity(
     Returns
     -------
     str
-        The job identifier, reused by the caller's model construction.
     """
     schema_where = _dotted(where, "schema")
     schema = _integer(_required(table, "schema", where), schema_where)
@@ -306,20 +292,17 @@ def load_job(document_text: str, relative: pathlib.PurePosixPath) -> model.Corpu
     Parameters
     ----------
     document_text : str
-        The ``job.toml`` file's text.
     relative : pathlib.PurePosixPath
         The file's path relative to the corpus root, which names its directory.
 
     Returns
     -------
     model.CorpusJob
-        The job, with its alternatives, cases, and observations.
 
     Raises
     ------
     EvidenceFormatError
-        If a multiline ``text`` input contains a carriage return, or the text
-        is invalid TOML.
+        If a multiline ``text`` input has a carriage return, or TOML is invalid.
     """
     reject_multiline_text_carriage_returns(document_text, relative)
     try:
@@ -378,8 +361,7 @@ def load_jobs(corpus_root: pathlib.Path) -> tuple[model.CorpusJob, ...]:
     Returns
     -------
     tuple[model.CorpusJob, ...]
-        Every loaded job. A corpus with no job files yields no jobs, which the
-        coverage policy reports as a gap rather than as a loader error.
+        Every loaded job; an empty corpus is a coverage gap, not an error.
 
     Raises
     ------

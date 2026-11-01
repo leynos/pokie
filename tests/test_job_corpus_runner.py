@@ -1,16 +1,11 @@
 """Unit tests for the runner's operand, input-name, and stdin rules.
 
-The end-to-end corpus tests in `tests/test_job_corpus_alternatives.py` drive the
-runner through committed jobs, but every committed case happens to obey the
-rules pinned here, so none of them can show what the runner does when a case
-does not. That matters because the failure mode is silent: a case whose input
-never reaches the program produces the same plausible-looking count that a
-program prints for input it could not read.
-
-`validate-user-records`'s oracle is the program under test. It counts the
-``user=<name> uid=<int>`` records it reads, from its operands or from standard
-input alike, so a one-record input makes the routes distinguishable: ``1 0``
-when the record arrived, ``0 0`` when it did not.
+The committed jobs in `tests/test_job_corpus_alternatives.py` all obey these
+rules, so none shows what the runner does with a case that does not. The
+failure is silent: input that never reaches the program yields the same
+plausible count as input it could not read. `validate-user-records`'s oracle
+counts ``user=<name> uid=<int>`` records, so a one-record input distinguishes
+``1 0`` from ``0 0``.
 """
 
 import dataclasses
@@ -49,8 +44,7 @@ def reference_of(jobs: tuple[model.CorpusJob, ...]) -> model.ScriptImplementatio
     Returns
     -------
     model.ScriptImplementation
-        The ``validate-user-records`` reference. A corpus without it fails the
-        assertion that names the job, rather than exercising nothing.
+        The ``validate-user-records`` reference, or the named assertion fails.
     """
     matches = [
         alternative
@@ -83,8 +77,7 @@ def make_case(
     Returns
     -------
     model.JobCase
-        A case whose identifier names this module, so a failure is traceable
-        to the test that made it.
+        A case naming this module, so a failure is traceable to its test.
     """
     return model.JobCase(
         case_id="runner-operands",
@@ -111,10 +104,7 @@ def test_a_lone_input_reaches_the_program(
 ) -> None:
     """A single input must reach the program by every documented route.
 
-    A named operand becomes the file's path, ``-`` becomes standard input, and
-    no operands at all means standard input too: the oracle reads ``sys.stdin``
-    when it is given nothing, and so does awk. A case that names no operand
-    must therefore not be handed silent empty input, which is the shape that
+    A case naming no operand must not be handed silent empty input, which
     reads as a program finding nothing interesting rather than finding nothing.
     """
     case = make_case(operands, ONE_RECORD)
@@ -130,9 +120,7 @@ def test_a_stdin_case_with_several_inputs_is_refused(
 ) -> None:
     """Standard input with several inputs is a corpus defect, not a guess.
 
-    The runner cannot know which input the program would read. Picking the
-    first silently would report the count for an input the case never selected,
-    which is a wrong answer a reader of ``job.toml`` could not have predicted.
+    Picking the first silently reports an input no ``job.toml`` reader chose.
     """
     case = make_case(("-",), TWO_RECORDS)
     with pytest.raises(ports.EvidenceFormatError):
@@ -145,9 +133,7 @@ def test_an_operand_naming_no_input_is_refused(
 ) -> None:
     """An operand naming an input the case does not list must be reported.
 
-    The sibling of the test above: neither a silent guess nor a silent empty
-    file, so a typo in ``job.toml`` cannot pass as a program that read
-    something uninteresting.
+    A silent empty file would let a ``job.toml`` typo pass as uninteresting.
     """
     case = make_case(("absent.log",), ONE_RECORD)
     with pytest.raises(ports.EvidenceFormatError):
@@ -160,9 +146,7 @@ def test_every_named_operand_reaches_the_program(
 ) -> None:
     """Each named operand must be materialized, not just the first.
 
-    A case over several files exists to show the program reading all of them,
-    so a runner that wrote only the first would report a count for one file
-    while the case claimed to have supplied two.
+    Writing only the first reports one file's count while the case lists two.
     """
     operands = tuple(input_file.name for input_file in TWO_RECORDS)
     case = make_case(operands, TWO_RECORDS)
@@ -177,14 +161,10 @@ def test_an_input_name_that_is_not_a_bare_file_name_is_refused(
 ) -> None:
     """An input name must be a bare file name, never a path.
 
-    Two reasons, both about a wrong answer rather than tidiness. The operand
-    is used as the path inside the run directory, and ``pathlib`` discards the
-    left operand when the right is absolute, so an absolute name would have
-    the run write outside its temporary directory — the constraint the plan
-    states. And a name with a separator is not reachable as an operand, since
-    the program is handed the joined path while the case says it named
-    ``a/users.log``, so the two would disagree about which file the case
-    selected.
+    The operand is the path inside the run directory, and ``pathlib`` discards
+    the left operand when the right is absolute, so an absolute name writes
+    outside it. A name with a separator is not reachable as an operand: the
+    program gets the joined path while the case says it named ``a/users.log``.
     """
     escaping = "../users.log"
     inputs = (model.InputFile(name=escaping, content=b"user=ada uid=42\n"),)
@@ -199,11 +179,8 @@ def test_two_inputs_sharing_a_name_are_refused(
 ) -> None:
     """Duplicate input names are a corpus defect, not a silent last-one-wins.
 
-    The name is the key that maps an operand to bytes, so a duplicate makes
-    the mapping ambiguous and the dict comprehension keeps the last. The run
-    would then feed the program bytes the case never selected for that
-    operand, and the reported outcome would describe an input no reader of
-    ``job.toml`` could have predicted from the operands listed.
+    The name keys an operand to bytes, so a duplicate makes the mapping
+    ambiguous and the dict comprehension keeps the last.
     """
     duplicated = (
         model.InputFile(name="users.log", content=b"user=ada uid=42\n"),
@@ -331,6 +308,11 @@ _PROBE_ANSWERS = [
     pytest.param([completed("x\n", 3), completed("y\n", 4)], "", id="non-zero-status"),
     pytest.param([subprocess.TimeoutExpired("awk", 10)] * 2, "", id="timeout"),
     pytest.param([FileNotFoundError("awk")] * 2, "", id="missing-executable"),
+    pytest.param(
+        [UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid")] * 2,
+        "",
+        id="undecodable-banner",
+    ),
 ]
 """Each spelling's answer, and the banner the probe must report for it."""
 
@@ -353,6 +335,7 @@ def test_the_probe_reports_what_each_awk_spelling_answers(
         assert command[0] == "/usr/bin/awk", why
         assert options["stdin"] is subprocess.DEVNULL, why
         assert options["timeout"] == 10, why
+        assert options["errors"] == "replace", why
         environment = options["env"]
         assert isinstance(environment, dict), why
         assert set(environment) == {"PATH", "LC_ALL"}, why

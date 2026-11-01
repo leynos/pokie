@@ -1,14 +1,13 @@
 """Loader tests for the `job.toml` schema.
 
 Obligation LEM-LOAD-1 in the ExecPlan owns this module. The tests pin the
-loader's strictness where a wrong-typed value could pass as the right one:
-Python makes ``True == 1`` and ``1.0 == 1``, so a boolean or float ``schema``
-would otherwise load as version 1 — a malformed file accepted in silence.
-
-The sample document lives in `tests/data/sample_job.toml`, so each mutation
-below differs from one known-valid file rather than from an inlined literal.
+loader's strictness where a wrong-typed value could otherwise load as the
+right one. The sample document lives in `tests/data/sample_job.toml`, so each
+mutation below differs from one known-valid file rather than from an inlined
+literal.
 """
 
+import json
 import pathlib
 
 import pytest
@@ -24,17 +23,25 @@ The loader also reads the job identifier from this directory name.
 JOB_DIR = RELATIVE.parent
 """The sample's directory, which the paths it writes resolve against."""
 
-DOCUMENT = (pathlib.Path(__file__).parent / "data" / "sample_job.toml").read_text(
-    encoding="utf-8"
-)
+DATA = pathlib.Path(__file__).parent / "data"
+"""Where the sample document and the case tables externalized below live."""
+
+DOCUMENT = (DATA / "sample_job.toml").read_text(encoding="utf-8")
 """The sample job, holding one of everything the schema defines."""
+
+MALFORMED: list[dict[str, str]] = json.loads(
+    (DATA / "malformed_jobs.json").read_text(encoding="utf-8")
+)
+"""Each mutation: the text it replaces, its replacement, and the key it breaks."""
+
+CARRIAGE_RETURNS: dict[str, dict[str, str]] = json.loads(
+    (DATA / "carriage_return_sources.json").read_text(encoding="utf-8")
+)
+"""Sources a ``text`` CR must be refused in, and sources the scan must leave."""
 
 
 def document_for(schema: str) -> str:
     """Return the sample document with its version spelled as ``schema``.
-
-    The TOML spelling, such as ``"true"`` or ``"1.0"``, replaces only the first
-    line, so each refusal test differs from the valid document solely in it.
 
     Returns
     -------
@@ -48,10 +55,9 @@ def test_the_sample_document_decodes_every_field() -> None:
     """Every decoded value must be the document's own, not a loader default.
 
     The expected values are written out here rather than read back from the
-    loader, and the sample uses non-default arguments, comparison, and
-    divergence, so substituting any default fails. This test is also the
-    control the mutation table below relies on: the sample is known-valid, so
-    a rejection is attributable to the mutation.
+    loader; the sample's non-default arguments, comparison, and divergence make
+    substituting any default fail. It is also the mutation table's control: the
+    sample is known-valid, so a rejection is attributable to the mutation.
     """
     job = toml_jobs.load_job(DOCUMENT, RELATIVE)
     assert (job.job_id, job.title, job.category) == (
@@ -142,12 +148,10 @@ def test_the_sample_document_decodes_every_field() -> None:
 def test_a_version_the_loader_cannot_read_is_refused(schema: str) -> None:
     """A version must be the integer this loader accepts, and nothing else.
 
-    ``True == 1`` and ``1.0 == 1`` in Python, so the two boolean spellings and
-    the float ``1.0`` compare equal to `SCHEMA_VERSION` and would load as
-    version 1. They are not version 1: they are a document whose version the
-    loader cannot read, and accepting one would let a malformed job file
-    through the strictness this loader promises. The remaining spellings are
-    rejected already, and are pinned here so a later change cannot lose them.
+    ``True == 1`` and ``1.0 == 1`` in Python, so the boolean and float
+    spellings compare equal to `SCHEMA_VERSION` and would load as version 1,
+    letting a malformed job file through. The other spellings are rejected
+    already and pinned here so a later change cannot lose them.
     """
     text = document_for(schema)
     with pytest.raises(ports.EvidenceFormatError) as raised:
@@ -159,58 +163,7 @@ def test_a_version_the_loader_cannot_read_is_refused(schema: str) -> None:
 
 @pytest.mark.parametrize(
     ("old", "new", "key"),
-    [
-        ("schema = 1\n", "", "schema"),
-        ('title = "Reject sample records"\n', "", "title"),
-        ("schema = 1", "extra = 1\nschema = 1", ""),
-        ('title = "Reject sample records"', "title = 7", "title"),
-        ('goals = ["G1"]', 'goals = "G1"', "goals"),
-        ('goals = ["G1"]', "goals = [1]", "goals"),
-        ('decisions = ["Q1", "Q6"]', 'decisions = "Q1"', "decisions"),
-        ('category = "filtering"', 'category = "unknown"', "category"),
-        (
-            'program = { path = "program.pokie", args = ["-F", "|"] }',
-            "program = 1",
-            "program",
-        ),
-        ('kind = "reference"', 'kind = "unknown"', "alternatives.kind"),
-        ('kind = "prior-art"', 'kind = "unknown"', "alternatives.kind"),
-        ('tool = "PAWK"', "tool = 7", "alternatives.tool"),
-        (
-            'description = "pawk -B with a regex filter."',
-            "",
-            "alternatives.description",
-        ),
-        ('tool = "PAWK"', 'colour = "red"\ntool = "PAWK"', "alternatives"),
-        ('id = "OBS-01"', "id = 7", "observations.id"),
-        ('kind = "ambiguity"', 'kind = "unknown"', "observations.kind"),
-        ('contracts = ["DC-2"]', "contracts = [1]", "observations.contracts"),
-        ('questions = ["Q3"]', 'questions = ["Q9"]', "observations.questions"),
-        ('questions = ["Q3"]', "questions = 1", "observations.questions"),
-        (
-            'summary = "The contract does not say whether empty input is a failure."',
-            "",
-            "observations.summary",
-        ),
-        ('id = "sample-job"', 'id = "different-job"', "id"),
-        (
-            'inputs = [{ name = "records.log", text = "ERROR a\\n" }]',
-            "inputs = 1",
-            "cases.inputs",
-        ),
-        (
-            'inputs = [{ name = "records.log", text = "ERROR a\\n" }]',
-            "inputs = [1]",
-            "cases.inputs",
-        ),
-        ('text = "ERROR a\\n"', 'text = "a\\r\\n"', "cases.inputs.text"),
-        ('text = "ERROR a\\n"', 'hex = "not hex"', "cases.inputs.hex"),
-        (', text = "ERROR a\\n"', "", "cases.inputs"),
-        ('text = "ERROR a\\n"', 'text = "a", hex = "61"', "cases.inputs"),
-        ("exit_status = 0, ", "", "cases.expected.exit_status"),
-        ("exit_status = 0", "exit_status = true", "cases.expected.exit_status"),
-        ("schema = 1", "schema = [", ""),
-    ],
+    [pytest.param(m["old"], m["new"], m["key"]) for m in MALFORMED],
 )
 def test_malformed_documents_report_the_exact_key(old: str, new: str, key: str) -> None:
     """Each malformed public document identifies its own file and schema key."""
@@ -270,16 +223,8 @@ _CRLF_TEXT = 'inputs = [{ name = "records.log", text = """a\r\nb""" }]'
 """A multiline ``text`` whose raw CRLF `tomllib` would normalize away."""
 
 _REFUSED = [
-    pytest.param(_CRLF_TEXT, id="basic-crlf"),
-    pytest.param("inputs = [{ name = 'r', text = '''a\rb''' }]", id="literal-cr"),
-    pytest.param('inputs = [{ "text" = """a\r\nb""" }]', id="quoted-key"),
-    pytest.param('"\\u0074ext" = """a\r\nb"""\n', id="escaped-key"),
-    pytest.param('a = 1\ninputs = [{ text = """c\r\nd""" }]', id="after-plain-key"),
-    pytest.param('x = """a\\"""b"""\ntext = """c\r\nd"""', id="after-escape"),
-    pytest.param('x = """a""""\ntext = """c\r\nd"""', id="after-trailing-quote"),
-    pytest.param('x = "a#b\\"c"\ntext = """d\r\ne"""', id="after-hash"),
-    pytest.param('x = """a\\\\"""\ntext = """c\r\nd"""', id="after-backslash"),
-    pytest.param('x = """a\\""""\ntext = """c\r\nd"""', id="after-escaped-quote"),
+    pytest.param(source, id=name)
+    for name, source in CARRIAGE_RETURNS["refused"].items()
 ]
 """Spellings the loader must refuse: a ``text`` string holding a physical CR.
 
@@ -287,12 +232,8 @@ An earlier literal or key, escape included, must not misalign the scan.
 """
 
 _ACCEPTED = [
-    pytest.param('inputs = [{ text = """a\nb\n""" }]', id="multiline-lf"),
-    pytest.param('# text = """\ninputs = [{ text = "a" }]', id="in-a-comment"),
-    pytest.param('inputs = ["""a\r\nb"""]', id="not-a-value"),
-    pytest.param('x = """a\r\nb"""', id="another-key"),
-    pytest.param('= """a\r\nb"""', id="no-key"),
-    pytest.param('text = """a', id="unterminated"),
+    pytest.param(source, id=name)
+    for name, source in CARRIAGE_RETURNS["accepted"].items()
 ]
 """Sources the scan must leave alone, because they hide no ``text`` CR."""
 
@@ -324,8 +265,7 @@ def test_reading_a_file_preserves_the_carriage_returns_it_holds(
 ) -> None:
     """``newline=""`` must expose the CR that the source scan has to reject.
 
-    The single-line text loads and keeps its bytes under CRLF line endings; the
-    multiline one is refused, so reading erased nothing either way.
+    Neither case may let reading erase a CR, so both outcomes are asserted.
     """
     document_path = tmp_path / RELATIVE
     document_path.parent.mkdir(parents=True)

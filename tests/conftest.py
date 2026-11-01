@@ -1,9 +1,8 @@
 """Shared fixtures and Hypothesis profiles for the test suite.
 
-The corpus harness runs child processes, and Hypothesis deadlines measure
-wall-clock time around the property body, so coverage instrumentation can trip
-one on a run that is merely slow. The default profile therefore has no
-deadline; `ci` also derandomizes, making a failure reproducible from its seed.
+The corpus harness runs child processes, so coverage instrumentation can trip a
+Hypothesis deadline on a merely slow run. The default profile has no deadline;
+`ci` derandomizes, so a failure is reproducible from its seed.
 """
 
 import os
@@ -54,8 +53,7 @@ def collect_awk_facts(
 ) -> AwkFacts:
     """Resolve the host awk and probe its version, before any rendering.
 
-    Discovery, the environment, and the probe are injectable, so a test can
-    drive every outcome without depending on this host's installed awks.
+    Discovery and the probe are injectable, so tests need not depend on this host.
 
     Returns
     -------
@@ -75,8 +73,7 @@ def pytest_configure(config: pytest.Config) -> None:
 def report_header_line(facts: AwkFacts) -> str:
     """Format the corpus awk header line from facts already collected.
 
-    Both absences are named outright, so the header never renders an empty
-    version as though it were a version somebody probed.
+    An absent executable or version is named, never rendered as if probed.
 
     Returns
     -------

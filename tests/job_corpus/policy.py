@@ -1,7 +1,6 @@
 """Pure validation policy for loaded representative corpus evidence.
 
-Helpers here apply only to the corpus schema; callers supply loaded values
-and roadmap order, so no policy depends on the current working directory.
+Helpers take loaded values and roadmap order and read no working directory.
 """
 
 import collections
@@ -106,8 +105,6 @@ def find_coverage_gaps(
 ) -> tuple[findings.Finding, ...]:
     """Find missing categories and tags; an empty corpus has both.
 
-    For example, ``find_coverage_gaps(())`` reports every category and tag.
-
     Parameters
     ----------
     jobs : cabc.Sequence[model.CorpusJob]
@@ -201,8 +198,6 @@ def find_identity_errors(
 ) -> tuple[findings.Finding, ...]:
     """Find duplicate jobs, cases, observations, and invalid declarations.
 
-    For example, supplying the same job twice reports its duplicate ID.
-
     Parameters
     ----------
     jobs : cabc.Sequence[model.CorpusJob]
@@ -231,8 +226,6 @@ def find_failure_mismatches(
     jobs: cabc.Sequence[model.CorpusJob],
 ) -> tuple[findings.Finding, ...]:
     """Check DC-4's failure/status table, including static failures at status 2.
-
-    For example, ``Failure.NONE`` paired with status 1 produces a finding.
 
     Parameters
     ----------
@@ -292,8 +285,6 @@ def find_undocumented_observations(
 
 def derive_verdict(jobs: cabc.Sequence[model.CorpusJob]) -> findings.Verdict:
     """Return revise-contracts exactly when a contradiction exists.
-
-    For example, an empty corpus has no contradictions and returns proceed.
 
     Parameters
     ----------

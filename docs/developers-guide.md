@@ -107,6 +107,13 @@ The session-scoped `reference_implementation` fixture selects a loaded job and
 its reference by script kind, and shares that pair across policy, comparison,
 and audit tests. Keep this fixture within the corpus tests.
 
+Case tables that would otherwise be long inline literals live in `tests/data/`:
+`sample_job.toml` is the known-valid job each mutation is derived from,
+`malformed_jobs.json` holds the mutation triples, and
+`carriage_return_sources.json` holds the sources the carriage-return scan must
+refuse and accept. Each table is expanded with `pytest.param`, so adding a case
+is a data edit rather than a Python edit and the modules stay readable.
+
 ### Contributor contract
 
 The harness is test-only: it runs corpus implementations as child processes and

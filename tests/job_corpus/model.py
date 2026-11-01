@@ -1,10 +1,7 @@
 """Corpus domain types.
 
-Every value the harness reasons about is a frozen dataclass or a `StrEnum`
-member, so policy functions can take values rather than files and stay pure.
-The types mirror the `job.toml` schema documented in ADR 0004; the loader in
-`job_corpus.adapters.toml_jobs` is the only place a document becomes these
-values.
+Frozen dataclasses and `StrEnum` members keep policy pure; the types mirror
+`job.toml` (ADR 0004), and only `job_corpus.adapters.toml_jobs` loads them.
 """
 
 import dataclasses
@@ -18,10 +15,9 @@ type Alternative = ScriptImplementation | DescribedAlternative
 
 
 class Failure(enum.StrEnum):
-    """Failure category of an observed or expected run.
+    """Failure category of a run; see `docs/design-contracts.md` §4 Table 2.
 
-    The members mirror `docs/design-contracts.md` §4 Table 2. `NONE` implies
-    exit status 0, `STATIC` implies 2, and every other member implies 1.
+    `NONE` implies exit status 0, `STATIC` implies 2, others imply 1.
     """
 
     NONE = "none"
@@ -81,9 +77,8 @@ class CaseTag(enum.StrEnum):
 class ScriptKind(enum.StrEnum):
     """The implementations a case can be run against.
 
-    `REFERENCE` is the oracle: it deliberately models proposed pokie
-    semantics. `POKIE` is reserved for roadmap task 2.1.3 and has no script
-    yet, which is why no corpus job declares it.
+    `REFERENCE` is the oracle: it deliberately models proposed pokie semantics.
+    `POKIE` is reserved for roadmap task 2.1.3 and has no script yet.
     """
 
     REFERENCE = "reference"
@@ -102,8 +97,7 @@ class DescribedKind(enum.StrEnum):
 class Comparison(enum.StrEnum):
     """How an alternative's standard output is compared with the expected.
 
-    `SORTED_LINES` exists because POSIX leaves `for (key in array)` order
-    unspecified, so an awk aggregation cannot promise a line order.
+    `SORTED_LINES` exists: POSIX leaves `for (key in array)` order unspecified.
     """
 
     EXACT = "exact"
@@ -183,9 +177,7 @@ class ObservedOutcome:
 class Divergence:
     """A case where an alternative is expected to disagree with the oracle.
 
-    A declaration is a claim, not an excuse: the alternative tests fail when a
-    declared divergence agrees, so a stale declaration cannot hide a wrong
-    expectation.
+    Tests fail if a declared divergence agrees; stale claims cannot hide errors.
     """
 
     case_id: str
@@ -219,9 +211,8 @@ class ScriptImplementation:
 class DescribedAlternative:
     """An alternative the corpus names but does not execute.
 
-    Users' existing workarounds, and prior art such as PAWK, are recorded as
-    prose: reproducing them would need their own runtimes, and the comparison
-    roadmap task 5.2.2 makes is a task observation, not a script diff.
+    Workarounds and prior art such as PAWK need their own runtimes, so they
+    are recorded as prose, not a script diff, for roadmap task 5.2.2.
     """
 
     kind: DescribedKind
@@ -261,9 +252,7 @@ class JobCase:
 class ProposedProgram:
     """A pokie program that is specified but not executable.
 
-    No interpreter exists, so every program in the corpus is a proposal. The
-    path is recorded so `docs/job-corpus.md` can link to the real file rather
-    than copying it.
+    The path is recorded so `docs/job-corpus.md` links to the real file.
     """
 
     path: pathlib.PurePosixPath

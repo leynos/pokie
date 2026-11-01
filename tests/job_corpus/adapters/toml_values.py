@@ -1,19 +1,16 @@
 r"""Scalar coercion for ``job.toml`` documents.
 
 These naming helpers are internal to the ``job_corpus.adapters`` package:
-`job_corpus.adapters.toml_jobs` walks a document's schema and calls one helper
-per value, so the walk reads as the schema it implements.
+`job_corpus.adapters.toml_jobs` walks a schema, calling one helper per value.
 
-Coercion never defaults. A wrong-shaped value is a defect in the evidence, not
-something to guess at, so a failure names the corpus-relative file and the
-dotted TOML key: every helper takes a ``where`` pair holding both, and every
+Coercion never defaults: a wrong-shaped value is a defect in the evidence, so
+a failure names the corpus-relative file and the dotted TOML key. Every
 diagnostic the module raises comes from `_fail`.
 
 Input bytes arrive as a single-line TOML basic string (``text``) or as
-hexadecimal (``hex``). A ``text`` value authored as a multiline string is
-rejected by `job_corpus.adapters.toml_source` before parsing, not silently
-normalized: `tomllib` normalizes ``\r\n`` inside those, so a carriage return
-needs ``hex``.
+hexadecimal (``hex``). A multiline ``text`` string is rejected by
+`job_corpus.adapters.toml_source` before parsing: `tomllib` normalizes
+``\r\n`` inside those, so a carriage return needs ``hex``.
 """
 
 import enum
@@ -42,9 +39,8 @@ def _fail(where: Where, message: str) -> typ.NoReturn:
 
     Notes
     -----
-    A guard that must end a function returning a value is written as
-    ``return _fail(...)``: the call never returns, so the returned expression
-    is unreachable.
+    A guard in a value-returning function is written ``return _fail(...)``:
+    the call never returns, so the returned expression is unreachable.
     """
     path, key = where
     raise EvidenceFormatError(message, path=path, key=key)
@@ -84,8 +80,6 @@ def _table(value: object, where: Where) -> dict[str, object]:
     -------
     dict[str, object]
         The value as a table, whose keys `tomllib` has made strings already.
-        A value that is not a table, or that holds a key which is not a
-        string, is reported through `_fail` rather than returned.
     """
     if not isinstance(value, dict):
         _fail(where, "expected a table")
@@ -139,9 +133,8 @@ def _text(value: object, where: Where) -> str:
 def _integer(value: object, where: Where) -> int:
     """Return an integer, rejecting booleans, or report the value as malformed.
 
-    Every integer the schema reads goes through here, so a field cannot be
-    stricter or laxer than its neighbours. The check is on the type because
-    Python makes ``True == 1``: a boolean would otherwise pass as an integer.
+    The check is on the type because Python makes ``True == 1``: a boolean
+    would otherwise pass as an integer.
 
     Parameters
     ----------
@@ -153,8 +146,7 @@ def _integer(value: object, where: Where) -> int:
     Returns
     -------
     int
-        The value, unless it is not an integer or is a boolean; `_fail` reports
-        those instead.
+        The value, which must be an integer and not a boolean.
     """
     if not isinstance(value, int) or isinstance(value, bool):
         _fail(where, "expected an integer")
@@ -174,8 +166,7 @@ def _strings(value: object, where: Where) -> tuple[str, ...]:
     Returns
     -------
     tuple[str, ...]
-        The array's strings, in the order the document gives them. A value
-        that is not an array of strings is reported through `_fail`.
+        The array's strings, in the order the document gives them.
     """
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         _fail(where, "expected an array of strings")
@@ -195,8 +186,7 @@ def _tables(value: object, where: Where) -> list[object]:
     Returns
     -------
     list[object]
-        The array's elements, each of which a ``_load_*`` function reads. A
-        value that is not an array is reported through `_fail`.
+        The array's elements, each of which a ``_load_*`` function reads.
     """
     if not isinstance(value, list):
         _fail(where, "expected an array of tables")
@@ -220,9 +210,7 @@ def _member[MemberT: enum.StrEnum](
     Returns
     -------
     MemberT
-        The member whose value is that string. A value that is not a string,
-        or that names no member of ``enum_type``, is reported through `_fail`,
-        naming every member the enum does define.
+        The member whose value is that string.
     """
     text = _text(value, where)
     try:
@@ -249,9 +237,7 @@ def _members[MemberT: enum.StrEnum](
     Returns
     -------
     tuple[MemberT, ...]
-        One member per array element, in the order the document gives them. A
-        value that is not an array of strings, or that has an element naming
-        no member of ``enum_type``, is reported through `_fail`.
+        One member per array element, in the order the document gives them.
     """
     if not isinstance(value, list):
         _fail(where, "expected an array of strings")
@@ -273,8 +259,7 @@ def _required(table: dict[str, object], name: str, where: Where) -> object:
     Returns
     -------
     object
-        The key's decoded value. A table without the key is reported through
-        `_fail`, naming the key within its table.
+        The key's decoded value.
     """
     if name not in table:
         _fail(_dotted(where, name), "expected the key to be present")
@@ -312,10 +297,7 @@ def _contents(table: dict[str, object], where: Where) -> bytes:
     Returns
     -------
     bytes
-        The input's exact content. A table holding neither encoding or both,
-        a ``hex`` value that is not hexadecimal, or a ``text`` value holding a
-        carriage return that a TOML basic string would have normalized away
-        are all reported through `_fail`.
+        The input's exact content.
     """
     present = [name for name in ("text", "hex") if name in table]
     if len(present) != 1:
@@ -334,9 +316,9 @@ def _contents(table: dict[str, object], where: Where) -> bytes:
 def _corpus_path(name: str, where: Where) -> pathlib.PurePosixPath:
     """Resolve a path written relative to its own job directory.
 
-    A job names its scripts the way a reader of that directory would, and domain
-    values carry the corpus-relative path, so the runner never needs to know
-    which job a script belongs to. For example, ``reference.py`` in
+    A job names its scripts the way a reader of that directory would, and
+    domain values carry the corpus-relative path, so the runner never needs to
+    know which job a script belongs to. For example, ``reference.py`` in
     ``jobs/example/job.toml`` resolves to ``jobs/example/reference.py``.
 
     Parameters

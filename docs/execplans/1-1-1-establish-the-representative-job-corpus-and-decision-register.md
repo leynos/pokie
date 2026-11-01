@@ -98,9 +98,11 @@ changes the audit verdict from `proceed` to `revise-contracts`.
 
 ## Tolerances (exception triggers)
 
-- Scope: if the change needs more than 45 files outside
+- Scope: if the change needs more than 92 files outside
   `tests/job_corpus/jobs/`, or more than 4,800 net lines of Python outside that
-  directory, stop and escalate.
+  directory, stop and escalate. The project owner raised the file limit from 45
+  to 92 on 2026-11-01, because the inline case tables moved to `tests/data/`;
+  the net-line limit is unchanged.
 - Interface: if anything under `pokie/` must change, stop and escalate.
 - Dependencies: if anything beyond the three approved development dependencies
   is needed, stop and escalate.
@@ -410,7 +412,7 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   - `load_jobs` caught only `OSError`, so invalid UTF-8 escaped as a raw
     `UnicodeDecodeError` without the corpus-relative path; it now reports both
     `OSError` and `UnicodeDecodeError` as `EvidenceFormatError`, and the
-    read-error test is parametrized over a directory and over `b"\xff"`.
+    read-error test is parameterized over a directory and over `b"\xff"`.
   - the isolated mutation tree did not receive the committed coverage baseline,
     so the workflow-contract check would raise `FileNotFoundError` there;
     `[tool.mutmut] also_copy` now carries `.coverage-baseline-v2.python`,
@@ -447,6 +449,37 @@ changes the audit verdict from `proceed` to `revise-contracts`.
   38-line overrun this round would otherwise have caused was absorbed by
   condensing docstring prose in the touched modules; no Parameters, Returns, or
   Raises section was dropped, and no test was weakened.
+- [x] (2026-11-01) The review of `4a90b28` (review `5725316685`) raised two
+  inline findings and one warning row; each was verified against the current
+  source before repair:
+  - The awk probe asked `subprocess.run` for text output, so an awk whose
+    banner was not valid UTF-8 raised `UnicodeDecodeError`, which is a
+    `ValueError` rather than an `OSError` and so escaped the probe. The probe
+    now passes `errors="replace"`, the failure tuple is named
+    `_PROBE_FAILURES`, and a test drives an undecodable banner and asserts the
+    `errors` option, so a future edit cannot silently drop it.
+  - The suggestion that `ty` needs `extra-paths` to resolve the
+    `vulture_whitelist` module's `import conftest` is not reproducible:
+    `ty check tests/job_corpus/vulture_whitelist.py` reports all checks
+    passed, while a control probe with a bogus import does report an
+    unresolved import, so the finding was answered with that evidence rather
+    than a configuration change.
+  - Developer Documentation: this plan gained this entry, the interface
+    inventory now names `AwkFacts`, `collect_awk_facts`, `report_header_line`,
+    `awk_version`, and the `tests/data/` tables, and the raised file limit is
+    recorded under Tolerances.
+- [x] (2026-11-01) Large inline case tables moved out of Python into
+  `tests/data/`: the mutation triples to `malformed_jobs.json` and the
+  carriage-return sources to `carriage_return_sources.json`, each expanded with
+  `pytest.param`, so a new case is a data edit. The contract they encode is
+  unchanged; only their storage is. The freed lines were returned to the budget
+  rather than spent, and the modules that own them were left with their
+  docstring contracts intact.
+- [x] (2026-11-01) Final measurement outside `tests/job_corpus/jobs/`: 26
+  Python files and 4,797 net Python lines, 45 files overall, against limits of
+  92 files and 4,800 net lines. The file limit was raised by the project owner
+  on this date to accommodate the data files; the net-line limit is unchanged
+  and this candidate sits three lines inside it.
 
 ## Surprises & discoveries
 
@@ -2354,11 +2387,30 @@ tests/job_corpus/ports.py             ProgramRunner
 tests/job_corpus/vulture_whitelist.py names Vulture cannot see through TOML text
 tests/job_corpus/adapters/toml_jobs.py       load_jobs, EvidenceFormatError
 tests/job_corpus/adapters/markdown_docs.py   load_register, load_roadmap_task_ids
-tests/job_corpus/adapters/process_runner.py  ProcessRunner
+tests/job_corpus/adapters/process_runner.py  ProcessRunner, awk_version
 tests/job_corpus/jobs/<job-id>/       job.toml, program.pokie, reference.py, alternative.awk, alternative.sh
-tests/conftest.py                     Hypothesis profiles; corpus_root, repository_jobs, process_runner, awk_executable
+tests/data/                           sample_job.toml, malformed_jobs.json, carriage_return_sources.json
+tests/conftest.py                     Hypothesis profiles; AwkFacts, collect_awk_facts, report_header_line; session fixtures
 tests/features/job_corpus.feature
 ```
+
+The awk the corpus runs is resolved once, at `pytest_configure`, and stored on
+the session stash under `AWK_FACTS_KEY` as an `AwkFacts` record.
+`collect_awk_facts` resolves `JOB_CORPUS_AWK` ahead of `PATH` and probes only
+the executable it resolved; `report_header_line` renders the stored facts, so
+the report header never probes a second time. Both the discovery and the probe
+are injectable parameters, which is what lets the tests exercise an absent,
+pinned, or misbehaving awk without depending on the host's. The session
+fixtures are `corpus_root`, `repository_jobs`, `process_runner_instance`, and
+`reference_implementation`; the last selects a reference and its job together,
+so a test never depends on the order alternatives happen to be declared in.
+
+`tests/data/` holds the case tables that would otherwise be long inline
+literals: `sample_job.toml` is the known-valid job each mutation is derived
+from, `malformed_jobs.json` holds the mutation triples, and
+`carriage_return_sources.json` holds the sources the carriage-return scan must
+refuse and accept. Each table is expanded with `pytest.param`, so adding a case
+is a data edit rather than a Python edit.
 
 Domain types (frozen, slotted dataclasses and `enum.StrEnum` members, as
 `.rules/python-00.md` prefers):
@@ -2493,9 +2545,9 @@ Signposted skills for the implementer: `execplans` (keep this plan current),
 `hexagonal-architecture` (keep the single port and pure core), `python-router`,
 then `python-data-shapes` (frozen dataclasses and tagged unions),
 `python-types-and-apis` (protocols), `python-testing` (fixtures,
-parametrization, syrupy), `hypothesis` (properties), `python-errors-and-logging`
-(`EvidenceFormatError`), `leta` (navigation), `en-gb-oxendict-style`
-(documentation), and `commit-message`.
+parameterization, syrupy), `hypothesis` (properties),
+`python-errors-and-logging` (`EvidenceFormatError`), `leta` (navigation),
+`en-gb-oxendict-style` (documentation), and `commit-message`.
 
 Signposted documents: `docs/terms-of-reference.md` §§3–9,
 `docs/pokie-design.md` §§1–6, 9–11, `docs/design-contracts.md` §§1, 3–4,
@@ -2538,3 +2590,10 @@ the repository's cyclomatic-complexity limit is 8).
   The users' guide change now avoids fenced programs, following the refreshed
   guide's tested-example rule. No milestone, obligation, or acceptance
   criterion changed.
+- 2026-11-01: reviewed `4a90b28` and repaired its findings. The awk probe now
+  decodes with `errors="replace"` and reports an undecodable banner as no
+  banner; the `ty` configuration request was answered with evidence instead of
+  a change, because the whitelist module already resolves; and this plan
+  records the review, the raised file limit, the `tests/data/` case tables, and
+  the interface names the developer guide now relies on. Effect: same corpus
+  and same contracts, one fewer way for a host awk to break collection.

@@ -1,15 +1,10 @@
 """Guard that keeps the Vulture whitelist from rotting into a blanket exemption.
 
 `tests/job_corpus/vulture_whitelist.py` names declarations that are live even
-though no Python expression spells them. An entry that has outlived its
-justification would quietly exempt a name from dead-code detection, so this
-module fails when the whitelist and Vulture disagree in either direction: every
-entry must still be a name Vulture reports as unused, and every name Vulture
-reports must be declared.
-
-That makes the whitelist self-clearing. When EP-M1's policy and EP-M2's report
-start reading a field, Vulture stops reporting it and this test fails until the
-entry is deleted.
+though no Python expression spells them. A stale entry would quietly exempt a
+name from dead-code detection, so this module fails when the whitelist and
+Vulture disagree in either direction. It is self-clearing: a consumer of a field
+stops Vulture reporting it, so this test fails until the entry is deleted.
 """
 
 import ast
@@ -43,8 +38,7 @@ def _class_body_lines(node: ast.ClassDef) -> dict[int, str]:
     Returns
     -------
     dict[int, str]
-        Each statement's line number mapped to ``node.name``. A body statement
-        without a line number is omitted.
+        Each statement's line number mapped to ``node.name``.
     """
     return {
         lineno: node.name
@@ -91,9 +85,8 @@ def qualify(classes: dict[int, str], lineno: int, name: str) -> str:
     Returns
     -------
     str
-        ``Class.member`` for a class-body declaration, else the bare name. This
-        is the form the whitelist uses once its module alias is dropped, so an
-        enum member and a same-named module-level constant stay distinct.
+        ``Class.member`` for a class-body declaration, else the bare name, so
+        an enum member and a same-named module-level constant stay distinct.
 
     Examples
     --------
@@ -209,10 +202,8 @@ def test_reporting_does_not_depend_on_the_callers_directory(
 
     Vulture runs with ``cwd=REPO_ROOT``, so it prints corpus-relative paths
     like ``tests/job_corpus/model.py``. Resolving one against the caller's
-    directory rather than the repository root raises ``FileNotFoundError``
-    whenever pytest is started from a subdirectory — a failure that says
-    nothing about the whitelist and would send a reader hunting for a missing
-    file. Pinned because a guard is only useful if it can be run from anywhere.
+    directory raises ``FileNotFoundError`` whenever pytest is started from a
+    subdirectory, a failure unrelated to the whitelist.
     """
     expected = reported_names()
     monkeypatch.chdir(tmp_path)
@@ -229,9 +220,8 @@ def test_whitelist_matches_vulture() -> None:
 
     A declared name Vulture no longer reports is a stale entry: the consuming
     code has landed, so the exemption must go. A reported name the whitelist
-    does not declare means a genuinely dead declaration reached the corpus
-    harness, which the `dead-code` gate would reject but whose cause this test
-    names directly.
+    does not declare is a genuinely dead declaration, which the `dead-code`
+    gate would reject but whose cause this test names directly.
     """
     declared = declared_names()
     reported = reported_names()

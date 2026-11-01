@@ -1,11 +1,7 @@
 r"""Run corpus implementations as child processes.
 
-The runner and `awk_version` are the only places in the harness that start
-another program. They pass an argument list, never a shell, and an explicit
-environment allowlist, so no outcome depends on the developer's locale.
-
-Materializing a case's inputs and building that environment need no runner, so
-both are module-level: only the command shape and time limit vary per run.
+The runner and `awk_version` alone start a program, by argument list and
+never a shell, with an explicit environment allowlist that fixes the locale.
 """
 
 import dataclasses
@@ -24,19 +20,15 @@ if typ.TYPE_CHECKING:
 
 _TIMEOUT_STATUS = -1
 
-_PROBE_FAILURES = (OSError, subprocess.SubprocessError)
-"""What a missing or misbehaving awk raises, and what the probe must survive.
+_PROBE_FAILURES = (OSError, subprocess.SubprocessError, UnicodeDecodeError)
+"""What a missing, misbehaving, or undecodable awk raises.
 
-Named rather than written inline because the repository's lint runs one parser
-that predates unparenthesized ``except`` tuples.
+Named because the lint parser predates unparenthesized ``except`` tuples.
 """
 
 
 def _inputs_by_name(case: model.JobCase) -> dict[str, model.InputFile]:
     """Return the case's inputs keyed by name, refusing any ambiguity.
-
-    Every input name must be a bare file name and no two may coincide: the name
-    maps an operand to bytes, so a path-like or reused name reads other bytes.
 
     Parameters
     ----------
@@ -86,10 +78,6 @@ def _materialize(
 ) -> tuple[list[str], bytes]:
     """Write the case's inputs and resolve its operands.
 
-    An absent operand, or a lone ``-``, reads standard input and so needs
-    exactly one input: the runner cannot know which of several a program would
-    read. Every other operand names a file written for the run alone.
-
     Parameters
     ----------
     case : model.JobCase
@@ -105,9 +93,8 @@ def _materialize(
     Raises
     ------
     EvidenceFormatError
-        If an operand names no input in the case, the case reads standard
-        input without exactly one input to feed it, or its input names are not
-        usable as operands (see `_inputs_by_name`).
+        If an operand names no input, the case cannot feed standard input
+        from exactly one input, or its names are unusable (see `_inputs_by_name`).
     """
     by_name = _inputs_by_name(case)
     if not case.operands or case.operands == ("-",):
@@ -158,8 +145,7 @@ def _environment(kind: model.ScriptKind) -> dict[str, str]:
     Returns
     -------
     dict[str, str]
-        The environment the child receives; no other inherited key is
-        passed, so a stray ``PYTHONPATH`` cannot reach the oracle.
+        The child's environment; nothing else is inherited from the caller.
     """
     locale = "C.UTF-8" if kind is model.ScriptKind.REFERENCE else "C"
     return {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LC_ALL": locale}
@@ -172,12 +158,8 @@ def awk_version(
 ) -> str:
     """Return the first version line ``executable`` prints, or ``""``.
 
-    Both spellings are tried because mawk and gawk answer ``-W version`` and
-    other awks only ``--version``. Standard input is closed so an awk that
-    treats ``version`` as program text cannot block, the environment is the
-    module's allowlist so no banner depends on the caller's locale, and any
-    failure returns ``""`` rather than raising: a host without a probe is
-    reported, never fatal.
+    mawk and gawk answer ``-W version`` while others accept only ``--version``;
+    standard input is closed so an awk cannot block, and failures return ``""``.
 
     Parameters
     ----------
@@ -198,6 +180,7 @@ def awk_version(
                 capture_output=True,
                 stdin=subprocess.DEVNULL,
                 text=True,
+                errors="replace",
                 timeout=10,
                 check=False,
                 env=_environment(model.ScriptKind.AWK),
@@ -214,18 +197,16 @@ def awk_version(
 class ProcessRunner:
     """Run an implementation with a fixed command shape per script kind.
 
-    The reference runs under ``sys.executable -I`` so that no user site
-    directory, ``PYTHON*`` variable, or checkout-relative module can change
-    what the oracle does. The awk and shell alternatives run under ``LC_ALL=C``
-    because their output comparison depends on byte order.
+    The reference runs under ``sys.executable -I`` so no user site directory,
+    ``PYTHON*`` variable, or checkout-relative module can change the oracle;
+    awk and shell runs use ``LC_ALL=C`` because comparison is by byte order.
 
     Attributes
     ----------
     corpus_root : pathlib.Path
         Directory the implementation paths are relative to.
     awk_executable : str | None
-        The awk on this host, or ``None`` when none is installed. ``None``
-        makes an awk run fail as unsupported rather than quietly succeed.
+        The host awk, or ``None``, which makes an awk run fail as unsupported.
     timeout : float
         Seconds before a run is reported as timed out rather than finished.
     """
@@ -290,8 +271,7 @@ class ProcessRunner:
         Returns
         -------
         model.ObservedOutcome
-            The captured bytes, exit status, and timeout flag. A timeout is a
-            reported outcome, so one slow implementation aborts no run.
+            The captured bytes, exit status, and timeout flag.
         """
         try:
             completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - argument list, no shell.
@@ -366,8 +346,7 @@ class ProcessRunner:
         Raises
         ------
         EvidenceFormatError
-            If this host has no awk, so the shortfall is reported rather than
-            counted as agreement.
+            If this host has no awk, so the shortfall is reported, never agreement.
         """
         if self.awk_executable is None:
             message = "no awk is installed on this host, so the alternative cannot run"
