@@ -16,6 +16,16 @@ RETIRED_BASELINE_FILES = (
     ".coverage-baseline-v2.python",
 )
 ACTIONLINT_INSTALL = re.compile(r"actionlint@(v\d+\.\d+\.\d+)")
+GO_BIN_ON_PATH = 'echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"'
+# `make lint` depends on `duplication`, which installs the detector.
+DETECTOR_SETUP = (r"make\s+install-nose(?![\w-])", r"make\s+lint(?![\w-])")
+# `with` is a keyword, so the record uses the functional TypedDict form. Only
+# the fields these contracts read are declared.
+WorkflowStep = typ.TypedDict(
+    "WorkflowStep",
+    {"uses": str, "run": str, "with": dict[str, str]},
+    total=False,
+)
 
 
 def test_act_runtime_excludes_vulnerable_releases() -> None:
@@ -64,7 +74,7 @@ def test_act_smoke_disables_upload_and_handles_output_paths_with_spaces() -> Non
     assert " " in build_step["with"]["out-dir"], why
 
 
-def job_steps(workflow_name: str) -> list[list[dict[str, typ.Any]]]:
+def job_steps(workflow_name: str) -> list[list[WorkflowStep]]:
     """Return every job's step list for one workflow.
 
     Parameters
@@ -74,20 +84,23 @@ def job_steps(workflow_name: str) -> list[list[dict[str, typ.Any]]]:
 
     Returns
     -------
-    list[list[dict[str, Any]]]
+    list[list[WorkflowStep]]
         One step list per job, in declaration order.
     """
     path = REPOSITORY / ".github/workflows" / workflow_name
     workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return [job.get("steps", []) for job in workflow["jobs"].values()]
+    return [
+        typ.cast("list[WorkflowStep]", job.get("steps", []))
+        for job in workflow["jobs"].values()
+    ]
 
 
-def is_ratchet_step(step: dict[str, typ.Any]) -> bool:
+def is_ratchet_step(step: WorkflowStep) -> bool:
     """Report whether a step delegates to the shared action with the ratchet on.
 
     Parameters
     ----------
-    step : dict[str, Any]
+    step : WorkflowStep
         One parsed workflow step.
 
     Returns
@@ -101,7 +114,7 @@ def is_ratchet_step(step: dict[str, typ.Any]) -> bool:
     )
 
 
-def only_ratchet_step(workflow_name: str) -> dict[str, typ.Any]:
+def only_ratchet_step(workflow_name: str) -> WorkflowStep:
     """Return the single coverage-ratchet step declared by one workflow.
 
     Parameters
@@ -111,7 +124,7 @@ def only_ratchet_step(workflow_name: str) -> dict[str, typ.Any]:
 
     Returns
     -------
-    dict[str, Any]
+    WorkflowStep
         The step that delegates to the shared coverage action with the ratchet
         on.
     """
@@ -190,10 +203,10 @@ def test_coverage_workflows_provision_the_probed_test_tools(
 ) -> None:
     """A skipped test drops its own covered lines from the ratchet figure."""
     setup = pre_ratchet_run_text(workflow_name)
-    # `make lint` depends on `duplication`, which installs the detector.
-    detector_setup = ("make install-nose", "make lint")
     why = f"{workflow_name} must install the duplication detector the suite probes"
-    assert any(command in setup for command in detector_setup), why
+    assert any(re.search(command, setup) for command in DETECTOR_SETUP), why
+    why = f"{workflow_name} must expose the installed Go binaries on PATH"
+    assert GO_BIN_ON_PATH in setup, why
 
 
 def test_coverage_workflows_pin_the_same_actionlint() -> None:

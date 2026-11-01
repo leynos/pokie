@@ -290,7 +290,7 @@ the same commit measured 96.28% on `main` against 97.23% on its pull request —
 more than the one-point tolerance. Both ratchet workflows therefore install
 Actionlint and the duplication detector before the coverage step, and
 `tests/test_workflow_contracts.py` fails if either stops doing so or if the two
-Actionlint pins diverge. Keep the two provisioning steps in step when adding a
+Actionlint pins diverge. Keep the two provisioning steps aligned when adding a
 test that probes for an external tool.
 
 The shared coverage action derives its baseline cache version from the
@@ -303,9 +303,15 @@ the same change. Do not rewrite the previous baseline in place: its cache entry
 would still match and would override the committed value. No workflow may name
 a retired path again.
 
-Re-measure with the hosted command before committing a new baseline:
+Install the tools the suite probes for, then re-measure with the hosted command
+before committing a new baseline. Without those tools the run skips the same
+three entries the coverage workflows used to skip, and reports a lower figure
+than either workflow measures:
 
 ```sh
+go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+export PATH="$(go env GOPATH)/bin:$PATH"
+make install-nose
 uv run --with slipcover python -m slipcover --branch --xml \
   --out coverage.xml -m pytest -v -n auto
 ```
