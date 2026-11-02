@@ -17,10 +17,14 @@ RETIRED_BASELINE_FILES = (
 )
 ACTIONLINT_INSTALL = re.compile(r"actionlint@(v\d+\.\d+\.\d+)")
 # `go install` writes into GOBIN when it is set, so the workflows resolve the
-# directory instead of assuming GOPATH/bin.
-GO_BIN_EXPOSURE = (
-    re.compile(r'gobin="\$\(go env GOBIN\)"'),
-    re.compile(r'echo "\$\{gobin:-\$\(go env GOPATH\)/bin\}" >> "\$GITHUB_PATH"'),
+# directory instead of assuming GOPATH/bin. The assignment and the PATH update
+# must share one `run` body: a separate step starts a new shell, where `gobin`
+# is unset and nothing reaches `GITHUB_PATH`.
+GO_BIN_EXPOSURE = re.compile(
+    r'gobin="\$\(go env GOBIN\)"'
+    r".*?"
+    r'echo "\$\{gobin:-\$\(go env GOPATH\)/bin\}" >> "\$GITHUB_PATH"',
+    re.DOTALL,
 )
 # `make lint` depends on `duplication`, which installs the detector.
 DETECTOR_SETUP = (r"make\s+install-nose(?![\w-])", r"make\s+lint(?![\w-])")
@@ -159,6 +163,29 @@ def test_coverage_workflows_share_the_committed_baseline(workflow_name: str) -> 
     assert configured == BASELINE_FILE, why
 
 
+def pre_ratchet_steps(workflow_name: str) -> list[WorkflowStep]:
+    """Return the steps that precede the coverage-ratchet step.
+
+    Parameters
+    ----------
+    workflow_name : str
+        Workflow file name below ``.github/workflows``.
+
+    Returns
+    -------
+    list[WorkflowStep]
+        Every step declared before the ratchet step in its job, in declaration
+        order.
+    """
+    return [
+        earlier
+        for steps in job_steps(workflow_name)
+        for index, step in enumerate(steps)
+        if is_ratchet_step(step)
+        for earlier in steps[:index]
+    ]
+
+
 def pre_ratchet_run_text(workflow_name: str) -> str:
     """Return the run commands declared before the coverage-ratchet step.
 
@@ -173,14 +200,7 @@ def pre_ratchet_run_text(workflow_name: str) -> str:
         The ``run`` bodies of every step that precedes the ratchet step in its
         job, in declaration order.
     """
-    bodies = [
-        earlier.get("run", "")
-        for steps in job_steps(workflow_name)
-        for index, step in enumerate(steps)
-        if is_ratchet_step(step)
-        for earlier in steps[:index]
-    ]
-    return "\n".join(bodies)
+    return "\n".join(step.get("run", "") for step in pre_ratchet_steps(workflow_name))
 
 
 def actionlint_pin(workflow_name: str) -> str:
@@ -210,8 +230,11 @@ def test_coverage_workflows_provision_the_probed_test_tools(
     setup = pre_ratchet_run_text(workflow_name)
     why = f"{workflow_name} must install the duplication detector the suite probes"
     assert any(re.search(command, setup) for command in DETECTOR_SETUP), why
-    why = f"{workflow_name} must expose the resolved Go binary directory on PATH"
-    assert all(pattern.search(setup) for pattern in GO_BIN_EXPOSURE), why
+    why = f"{workflow_name} must resolve GOBIN and expose it on PATH in the same step"
+    assert any(
+        GO_BIN_EXPOSURE.search(step.get("run", ""))
+        for step in pre_ratchet_steps(workflow_name)
+    ), why
 
 
 def test_coverage_workflows_pin_the_same_actionlint() -> None:
