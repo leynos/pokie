@@ -310,7 +310,8 @@ than either workflow measures:
 
 ```sh
 go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
-export PATH="$(go env GOPATH)/bin:$PATH"
+gobin="$(go env GOBIN)"
+export PATH="${gobin:-$(go env GOPATH)/bin}:$PATH"
 make install-nose
 uv run --with slipcover python -m slipcover --branch --xml \
   --out coverage.xml -m pytest -v -n auto

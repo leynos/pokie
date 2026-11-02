@@ -16,7 +16,12 @@ RETIRED_BASELINE_FILES = (
     ".coverage-baseline-v2.python",
 )
 ACTIONLINT_INSTALL = re.compile(r"actionlint@(v\d+\.\d+\.\d+)")
-GO_BIN_ON_PATH = 'echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"'
+# `go install` writes into GOBIN when it is set, so the workflows resolve the
+# directory instead of assuming GOPATH/bin.
+GO_BIN_EXPOSURE = (
+    re.compile(r'gobin="\$\(go env GOBIN\)"'),
+    re.compile(r'echo "\$\{gobin:-\$\(go env GOPATH\)/bin\}" >> "\$GITHUB_PATH"'),
+)
 # `make lint` depends on `duplication`, which installs the detector.
 DETECTOR_SETUP = (r"make\s+install-nose(?![\w-])", r"make\s+lint(?![\w-])")
 # `with` is a keyword, so the record uses the functional TypedDict form. Only
@@ -205,8 +210,8 @@ def test_coverage_workflows_provision_the_probed_test_tools(
     setup = pre_ratchet_run_text(workflow_name)
     why = f"{workflow_name} must install the duplication detector the suite probes"
     assert any(re.search(command, setup) for command in DETECTOR_SETUP), why
-    why = f"{workflow_name} must expose the installed Go binaries on PATH"
-    assert GO_BIN_ON_PATH in setup, why
+    why = f"{workflow_name} must expose the resolved Go binary directory on PATH"
+    assert all(pattern.search(setup) for pattern in GO_BIN_EXPOSURE), why
 
 
 def test_coverage_workflows_pin_the_same_actionlint() -> None:

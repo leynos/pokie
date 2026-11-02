@@ -71,7 +71,10 @@ jobs:
       - name: Install the tools the suite probes for
         run: |
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          # `go install` writes into GOBIN when it is set, so resolve the
+          # directory rather than assuming GOPATH/bin.
+          gobin="$(go env GOBIN)"
+          echo "${gobin:-$(go env GOPATH)/bin}" >> "$GITHUB_PATH"
           make install-nose
 
       - name: Generate coverage
