@@ -290,8 +290,11 @@ the same commit measured 96.28% on `main` against 97.23% on its pull request —
 more than the one-point tolerance. Both ratchet workflows therefore install
 Actionlint and the duplication detector before the coverage step, and
 `tests/test_workflow_contracts.py` fails if either stops doing so or if the two
-Actionlint pins diverge. Keep the two provisioning steps aligned when adding a
-test that probes for an external tool.
+Actionlint pins diverge. `tests/test_workflow_tool_install.py` executes each
+install step's shell body against stub executables, so a snippet that resolves
+a different directory, or that never writes `GITHUB_PATH`, fails without a
+runner. Keep the two provisioning steps aligned when adding a test that probes
+for an external tool.
 
 The shared coverage action derives its baseline cache version from the
 configured baseline paths, so naming a new path restores no cached archive and

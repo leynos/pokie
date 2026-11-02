@@ -2,39 +2,68 @@
 
 import re
 import tomllib
-import typing as typ
 from pathlib import Path
 
 import pytest
 import yaml
+from workflow_support import (
+    ACTIONLINT_INSTALL,
+    BASELINE_FILE,
+    COVERAGE_WORKFLOWS,
+    DETECTOR_SETUP,
+    GO_BIN_EXPOSURE,
+    REPOSITORY,
+    RETIRED_BASELINE_FILES,
+    WorkflowStep,
+    is_ratchet_step,
+    job_steps,
+    pre_ratchet_run_text,
+    pre_ratchet_steps,
+)
 
-REPOSITORY = Path(__file__).parents[1]
-COVERAGE_WORKFLOWS = ("ci.yml", "coverage-main.yml")
-BASELINE_FILE = ".coverage-baseline-v3.python"
-RETIRED_BASELINE_FILES = (
-    ".coverage-baseline.python",
-    ".coverage-baseline-v2.python",
-)
-ACTIONLINT_INSTALL = re.compile(r"actionlint@(v\d+\.\d+\.\d+)")
-# `go install` writes into GOBIN when it is set, so the workflows resolve the
-# directory instead of assuming GOPATH/bin. The assignment and the PATH update
-# must share one `run` body: a separate step starts a new shell, where `gobin`
-# is unset and nothing reaches `GITHUB_PATH`.
-GO_BIN_EXPOSURE = re.compile(
-    r'gobin="\$\(go env GOBIN\)"'
-    r".*?"
-    r'echo "\$\{gobin:-\$\(go env GOPATH\)/bin\}" >> "\$GITHUB_PATH"',
-    re.DOTALL,
-)
-# `make lint` depends on `duplication`, which installs the detector.
-DETECTOR_SETUP = (r"make\s+install-nose(?![\w-])", r"make\s+lint(?![\w-])")
-# `with` is a keyword, so the record uses the functional TypedDict form. Only
-# the fields these contracts read are declared.
-WorkflowStep = typ.TypedDict(
-    "WorkflowStep",
-    {"uses": str, "run": str, "with": dict[str, str]},
-    total=False,
-)
+
+def only_ratchet_step(workflow_name: str) -> WorkflowStep:
+    """Return the single coverage-ratchet step declared by one workflow.
+
+    Parameters
+    ----------
+    workflow_name : str
+        Workflow file name below ``.github/workflows``.
+
+    Returns
+    -------
+    WorkflowStep
+        The step that delegates to the shared coverage action with the ratchet
+        on.
+    """
+    steps = [
+        step
+        for job in job_steps(workflow_name)
+        for step in job
+        if is_ratchet_step(step)
+    ]
+    why = f"{workflow_name} must run the coverage ratchet exactly once"
+    assert len(steps) == 1, why
+    return steps[0]
+
+
+def actionlint_pin(workflow_name: str) -> str:
+    """Return the Actionlint release one workflow installs before measuring.
+
+    Parameters
+    ----------
+    workflow_name : str
+        Workflow file name below ``.github/workflows``.
+
+    Returns
+    -------
+    str
+        The pinned release tag, such as ``v1.7.12``.
+    """
+    match = ACTIONLINT_INSTALL.search(pre_ratchet_run_text(workflow_name))
+    why = f"{workflow_name} must install Actionlint before measuring coverage"
+    assert match is not None, why
+    return match.group(1)
 
 
 def test_act_runtime_excludes_vulnerable_releases() -> None:
@@ -83,71 +112,6 @@ def test_act_smoke_disables_upload_and_handles_output_paths_with_spaces() -> Non
     assert " " in build_step["with"]["out-dir"], why
 
 
-def job_steps(workflow_name: str) -> list[list[WorkflowStep]]:
-    """Return every job's step list for one workflow.
-
-    Parameters
-    ----------
-    workflow_name : str
-        Workflow file name below ``.github/workflows``.
-
-    Returns
-    -------
-    list[list[WorkflowStep]]
-        One step list per job, in declaration order.
-    """
-    path = REPOSITORY / ".github/workflows" / workflow_name
-    workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return [
-        typ.cast("list[WorkflowStep]", job.get("steps", []))
-        for job in workflow["jobs"].values()
-    ]
-
-
-def is_ratchet_step(step: WorkflowStep) -> bool:
-    """Report whether a step delegates to the shared action with the ratchet on.
-
-    Parameters
-    ----------
-    step : WorkflowStep
-        One parsed workflow step.
-
-    Returns
-    -------
-    bool
-        ``True`` when the step is a coverage-ratchet invocation.
-    """
-    return (
-        "generate-coverage@" in step.get("uses", "")
-        and step.get("with", {}).get("with-ratchet") == "true"
-    )
-
-
-def only_ratchet_step(workflow_name: str) -> WorkflowStep:
-    """Return the single coverage-ratchet step declared by one workflow.
-
-    Parameters
-    ----------
-    workflow_name : str
-        Workflow file name below ``.github/workflows``.
-
-    Returns
-    -------
-    WorkflowStep
-        The step that delegates to the shared coverage action with the ratchet
-        on.
-    """
-    steps = [
-        step
-        for job in job_steps(workflow_name)
-        for step in job
-        if is_ratchet_step(step)
-    ]
-    why = f"{workflow_name} must run the coverage ratchet exactly once"
-    assert len(steps) == 1, why
-    return steps[0]
-
-
 @pytest.mark.parametrize("workflow_name", COVERAGE_WORKFLOWS)
 def test_each_coverage_workflow_runs_one_ratchet(workflow_name: str) -> None:
     """A second ratchet step would hide which baseline the workflow enforces."""
@@ -161,65 +125,6 @@ def test_coverage_workflows_share_the_committed_baseline(workflow_name: str) -> 
     configured = step["with"].get("baseline-python-file")
     why = f"{workflow_name} must ratchet against {BASELINE_FILE}"
     assert configured == BASELINE_FILE, why
-
-
-def pre_ratchet_steps(workflow_name: str) -> list[WorkflowStep]:
-    """Return the steps that precede the coverage-ratchet step.
-
-    Parameters
-    ----------
-    workflow_name : str
-        Workflow file name below ``.github/workflows``.
-
-    Returns
-    -------
-    list[WorkflowStep]
-        Every step declared before the ratchet step in its job, in declaration
-        order.
-    """
-    return [
-        earlier
-        for steps in job_steps(workflow_name)
-        for index, step in enumerate(steps)
-        if is_ratchet_step(step)
-        for earlier in steps[:index]
-    ]
-
-
-def pre_ratchet_run_text(workflow_name: str) -> str:
-    """Return the run commands declared before the coverage-ratchet step.
-
-    Parameters
-    ----------
-    workflow_name : str
-        Workflow file name below ``.github/workflows``.
-
-    Returns
-    -------
-    str
-        The ``run`` bodies of every step that precedes the ratchet step in its
-        job, in declaration order.
-    """
-    return "\n".join(step.get("run", "") for step in pre_ratchet_steps(workflow_name))
-
-
-def actionlint_pin(workflow_name: str) -> str:
-    """Return the Actionlint release one workflow installs before measuring.
-
-    Parameters
-    ----------
-    workflow_name : str
-        Workflow file name below ``.github/workflows``.
-
-    Returns
-    -------
-    str
-        The pinned release tag, such as ``v1.7.12``.
-    """
-    match = ACTIONLINT_INSTALL.search(pre_ratchet_run_text(workflow_name))
-    why = f"{workflow_name} must install Actionlint before measuring coverage"
-    assert match is not None, why
-    return match.group(1)
 
 
 @pytest.mark.parametrize("workflow_name", COVERAGE_WORKFLOWS)
