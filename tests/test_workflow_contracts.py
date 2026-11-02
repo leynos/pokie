@@ -1,16 +1,69 @@
 """Tests for the externally visible GitHub workflow contracts."""
 
 import re
-import typing as typ
+import tomllib
 from pathlib import Path
 
 import pytest
 import yaml
+from workflow_support import (
+    ACTIONLINT_INSTALL,
+    BASELINE_FILE,
+    COVERAGE_WORKFLOWS,
+    DETECTOR_SETUP,
+    GO_BIN_EXPOSURE,
+    REPOSITORY,
+    RETIRED_BASELINE_FILES,
+    WorkflowStep,
+    is_ratchet_step,
+    job_steps,
+    pre_ratchet_run_text,
+    pre_ratchet_steps,
+)
 
-REPOSITORY = Path(__file__).parents[1]
-COVERAGE_WORKFLOWS = ("ci.yml", "coverage-main.yml")
-BASELINE_FILE = ".coverage-baseline-v2.python"
-RETIRED_BASELINE_FILE = ".coverage-baseline.python"
+
+def only_ratchet_step(workflow_name: str) -> WorkflowStep:
+    """Return the single coverage-ratchet step declared by one workflow.
+
+    Parameters
+    ----------
+    workflow_name : str
+        Workflow file name below ``.github/workflows``.
+
+    Returns
+    -------
+    WorkflowStep
+        The step that delegates to the shared coverage action with the ratchet
+        on.
+    """
+    steps = [
+        step
+        for job in job_steps(workflow_name)
+        for step in job
+        if is_ratchet_step(step)
+    ]
+    why = f"{workflow_name} must run the coverage ratchet exactly once"
+    assert len(steps) == 1, why
+    return steps[0]
+
+
+def actionlint_pin(workflow_name: str) -> str:
+    """Return the Actionlint release one workflow installs before measuring.
+
+    Parameters
+    ----------
+    workflow_name : str
+        Workflow file name below ``.github/workflows``.
+
+    Returns
+    -------
+    str
+        The pinned release tag, such as ``v1.7.12``.
+    """
+    match = ACTIONLINT_INSTALL.search(pre_ratchet_run_text(workflow_name))
+    why = f"{workflow_name} must install Actionlint before measuring coverage"
+    assert match is not None, why
+    return match.group(1)
 
 
 def test_act_runtime_excludes_vulnerable_releases() -> None:
@@ -59,54 +112,64 @@ def test_act_smoke_disables_upload_and_handles_output_paths_with_spaces() -> Non
     assert " " in build_step["with"]["out-dir"], why
 
 
-def ratchet_steps(workflow_name: str) -> list[dict[str, typ.Any]]:
-    """Return the coverage-ratchet steps declared by one workflow.
-
-    Parameters
-    ----------
-    workflow_name : str
-        Workflow file name below ``.github/workflows``.
-
-    Returns
-    -------
-    list[dict[str, Any]]
-        Steps that delegate to the shared coverage action with the ratchet on.
-    """
-    path = REPOSITORY / ".github/workflows" / workflow_name
-    workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return [
-        step
-        for job in workflow["jobs"].values()
-        for step in job.get("steps", [])
-        if "generate-coverage@" in step.get("uses", "")
-        and step.get("with", {}).get("with-ratchet") == "true"
-    ]
-
-
 @pytest.mark.parametrize("workflow_name", COVERAGE_WORKFLOWS)
 def test_each_coverage_workflow_runs_one_ratchet(workflow_name: str) -> None:
     """A second ratchet step would hide which baseline the workflow enforces."""
-    why = f"{workflow_name} must run the coverage ratchet exactly once"
-    assert len(ratchet_steps(workflow_name)) == 1, why
+    only_ratchet_step(workflow_name)
 
 
 @pytest.mark.parametrize("workflow_name", COVERAGE_WORKFLOWS)
 def test_coverage_workflows_share_the_committed_baseline(workflow_name: str) -> None:
     """Both ratchet runs must start from the same committed measurement."""
-    step = ratchet_steps(workflow_name)[0]
+    step = only_ratchet_step(workflow_name)
     configured = step["with"].get("baseline-python-file")
     why = f"{workflow_name} must ratchet against {BASELINE_FILE}"
     assert configured == BASELINE_FILE, why
 
 
 @pytest.mark.parametrize("workflow_name", COVERAGE_WORKFLOWS)
-def test_coverage_workflows_do_not_name_the_retired_baseline(
+def test_coverage_workflows_provision_the_probed_test_tools(
     workflow_name: str,
 ) -> None:
-    """Naming the retired path would restore its scaffold-era cached figure."""
+    """A skipped test drops its own covered lines from the ratchet figure."""
+    setup = pre_ratchet_run_text(workflow_name)
+    why = f"{workflow_name} must install the duplication detector the suite probes"
+    assert any(re.search(command, setup) for command in DETECTOR_SETUP), why
+    why = f"{workflow_name} must resolve GOBIN and expose it on PATH in the same step"
+    assert any(
+        GO_BIN_EXPOSURE.search(step.get("run", ""))
+        for step in pre_ratchet_steps(workflow_name)
+    ), why
+
+
+def test_coverage_workflows_pin_the_same_actionlint() -> None:
+    """One pin keeps both ratchet runs on the same linter release."""
+    pins = {name: actionlint_pin(name) for name in COVERAGE_WORKFLOWS}
+    why = f"Both coverage workflows must install one Actionlint release: {pins}"
+    assert len(set(pins.values())) == 1, why
+
+
+@pytest.mark.parametrize("workflow_name", COVERAGE_WORKFLOWS)
+def test_coverage_workflows_do_not_name_a_retired_baseline(
+    workflow_name: str,
+) -> None:
+    """Naming a retired path could restore its cached figure."""
     path = REPOSITORY / ".github/workflows" / workflow_name
-    why = f"{workflow_name} must not name {RETIRED_BASELINE_FILE}"
-    assert RETIRED_BASELINE_FILE not in path.read_text(encoding="utf-8"), why
+    text = path.read_text(encoding="utf-8")
+    why = f"{workflow_name} must not name any of {RETIRED_BASELINE_FILES}"
+    assert not any(retired in text for retired in RETIRED_BASELINE_FILES), why
+
+
+def test_mutation_copy_includes_the_committed_baseline() -> None:
+    """Mutmut runs the suite in an isolated tree, so the baseline must travel."""
+    pyproject = tomllib.loads(
+        (REPOSITORY / "pyproject.toml").read_text(encoding="utf-8")
+    )
+    copied = pyproject["tool"]["mutmut"]["also_copy"]
+    why = f"mutmut must copy {BASELINE_FILE} into its isolated tree"
+    assert BASELINE_FILE in copied, why
+    why = f"mutmut must not copy any of {RETIRED_BASELINE_FILES}"
+    assert not any(retired in copied for retired in RETIRED_BASELINE_FILES), why
 
 
 def test_committed_python_baseline_is_one_percentage_line() -> None:

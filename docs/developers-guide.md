@@ -272,26 +272,50 @@ the environment has none.
 ### Coverage baseline
 
 The coverage ratchet compares each run with a committed, one-line percentage.
-`.coverage-baseline-v2.python` records the Python line coverage measured on the
-branch that introduced the representative job corpus. The earlier
+`.coverage-baseline-v3.python` records the Python line coverage measured with
+the same tooling both ratchet workflows install. The earlier
 `.coverage-baseline.python` was seeded at 98.88% by the near-empty scaffold on
 `main`, and the harness could not hold that figure once real test code existed.
-Both `.github/workflows/ci.yml` and `.github/workflows/coverage-main.yml` pass
-the new file as `baseline-python-file`, and `tests/test_workflow_contracts.py`
-holds both workflows to that path.
+`.coverage-baseline-v2.python` then recorded a figure measured on a developer's
+machine, where the Actionlint projection checks and the pinned duplication
+detector's source-area gate could run. Both `.github/workflows/ci.yml` and
+`.github/workflows/coverage-main.yml` pass the new file as
+`baseline-python-file`, and `tests/test_workflow_contracts.py` holds both
+workflows to that path.
+
+A skipped test still reports its module as imported, so the lines the skipped
+test itself covers drop out of the ratio. `coverage-main.yml` originally
+installed no tooling, so it skipped three suite entries that `ci.yml` runs, and
+the same commit measured 96.28% on `main` against 97.23% on its pull request —
+more than the one-point tolerance. Both ratchet workflows therefore install
+Actionlint and the duplication detector before the coverage step, and
+`tests/test_workflow_contracts.py` fails if either stops doing so or if the two
+Actionlint pins diverge. `tests/test_workflow_tool_install.py` executes each
+install step's shell body against stub executables, so a snippet that resolves
+a different directory, or that never writes `GITHUB_PATH`, fails without a
+runner. Keep the two provisioning steps aligned when adding a test that probes
+for an external tool.
 
 The shared coverage action derives its baseline cache version from the
 configured baseline paths, so naming a new path restores no cached archive and
 starts the ratchet from the committed figure. That is the supported way to
 bootstrap a baseline: add a versioned file (`-v2`, `-v3`, and so on), point
-every ratchet workflow at it, and commit the measured value in the same change.
-Do not rewrite the previous baseline in place: its cache entry would still
-match and would override the committed value. No workflow may name a retired
-path again.
+every ratchet workflow at it, name it in `[tool.mutmut].also_copy` so mutation
+runs carry the file into their isolated tree, and commit the measured value in
+the same change. Do not rewrite the previous baseline in place: its cache entry
+would still match and would override the committed value. No workflow may name
+a retired path again.
 
-Re-measure with the hosted command before committing a new baseline:
+Install the tools the suite probes for, then re-measure with the hosted command
+before committing a new baseline. Without those tools the run skips the same
+three entries the coverage workflows used to skip, and reports a lower figure
+than either workflow measures:
 
 ```sh
+go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+gobin="$(go env GOBIN)"
+export PATH="${gobin:-$(go env GOPATH)/bin}:$PATH"
+make install-nose
 uv run --with slipcover python -m slipcover --branch --xml \
   --out coverage.xml -m pytest -v -n auto
 ```

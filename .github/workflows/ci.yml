@@ -43,7 +43,10 @@ jobs:
           sudo apt-get install -y shellcheck
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
           npm install -g @action-validator/core@0.6.0 @action-validator/cli@0.6.0
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          # `go install` writes into GOBIN when it is set, so resolve the
+          # directory rather than assuming GOPATH/bin.
+          gobin="$(go env GOBIN)"
+          echo "${gobin:-$(go env GOPATH)/bin}" >> "$GITHUB_PATH"
 
       - name: Validate Makefile
         run: mbake validate Makefile
@@ -103,14 +106,15 @@ jobs:
           artefact-name-suffix: pokie
           with-ratchet: 'true'
           publish-artefact: 'false'
-          # The default path's cache entry was seeded from the near-empty
-          # scaffold at 98.88%, which the job-corpus harness cannot reach now
-          # that it carries test-only code. The cache version hashes the
-          # baseline paths, so a new path restores nothing and the ratchet
-          # starts from the committed measurement of this branch.
+          # The baseline was re-measured after `main`'s coverage job began
+          # provisioning the tools the suite probes for. A skip used to drop
+          # the skipped test's own covered lines, so `main` measured less code
+          # than this job even on the same commit. The cache version hashes
+          # the baseline paths, so a new path restores nothing and the ratchet
+          # starts from the committed measurement both jobs reproduce.
           # `tests/test_workflow_contracts.py` holds both ratchet workflows to
           # this path.
-          baseline-python-file: .coverage-baseline-v2.python
+          baseline-python-file: .coverage-baseline-v3.python
 
       - name: Check the CV-005 contracts
         run: make test-workflow-contracts
