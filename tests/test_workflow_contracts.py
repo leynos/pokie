@@ -116,3 +116,26 @@ def test_committed_python_baseline_is_one_percentage_line() -> None:
     assert re.fullmatch(r"\d{1,3}(?:\.\d+)?\n", text), why
     why = f"{BASELINE_FILE} must be a percentage between 0 and 100"
     assert 0.0 <= float(text) <= 100.0, why
+
+
+def test_publisher_installs_actionlint_before_measuring_coverage() -> None:
+    """The suite skips its actionlint tests without the tool, lowering coverage."""
+    workflow = yaml.safe_load(
+        (REPOSITORY / ".github/workflows/coverage-main.yml").read_text(encoding="utf-8")
+    )
+    steps = workflow["jobs"]["coverage-upload"]["steps"]
+    install = [
+        index
+        for index, step in enumerate(steps)
+        if "actionlint" in str(step.get("run", ""))
+        and "go install" in str(step.get("run", ""))
+    ]
+    measure = [
+        index
+        for index, step in enumerate(steps)
+        if "/generate-coverage@" in str(step.get("uses", ""))
+    ]
+    assert install, "the publisher must install actionlint"
+    assert measure, "the publisher must measure coverage"
+    why = "actionlint must be installed before coverage is measured"
+    assert install[0] < measure[0], why
