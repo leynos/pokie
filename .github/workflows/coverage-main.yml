@@ -60,6 +60,15 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86
 
+      # The suite runs actionlint over adapted action expressions and skips
+      # those tests without it; a skipped test is uncovered code, so the
+      # publisher measured below the pull-request lane and failed the ratchet.
+      # Install it as ci.yml does.
+      - name: Install actionlint
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
       - name: Generate coverage
         env:
           UV_PYTHON: '3.14'
