@@ -28,6 +28,14 @@ ACT_IMAGE ?= ghcr.io/catthehacker/ubuntu:act-24.04
 PYTEST_XDIST_WORKERS ?= auto
 # Include tracked and new source anywhere, including hidden action directories.
 PYTHON_TARGETS ?= $(shell git ls-files --cached --others --exclude-standard '*.py' '*.pyi')
+# Named directories, not the file list above. Interrogate scans each one
+# recursively, subject to its default exclusions, and a test checks that every
+# tracked Python directory is one of these or lies beneath one.
+INTERROGATE_TARGETS ?= pokie scripts tests
+# Level 2 prints a MISSED row per undocumented definition, which the
+# `interrogate` target fails on: the rounded percentage alone can pass a lone gap.
+INTERROGATE_FLAGS ?= -vv --fail-under 100
+INTERROGATE ?= $(UV_ENV) $(UV) run interrogate
 RUFF_VERSION ?= 0.16.8
 TY_VERSION ?= 0.0.56
 RUFF = $(UV_ENV) $(UV) tool run --python 3.14 --from 'ruff==$(RUFF_VERSION)' ruff
@@ -47,7 +55,7 @@ PYLINT = $(UV_ENV) $(UV) tool run --managed-python --python $(PYLINT_PYTHON) --f
 
 .PHONY: help all audit clean build build-release lint lint-python fmt check-fmt \
         markdownlint nixie spelling test test-act typecheck validate lint-actions \
-        install-nose duplication dead-code $(TOOLS) $(VENV_TOOLS)
+        install-nose duplication dead-code interrogate $(TOOLS) $(VENV_TOOLS)
 
 .DEFAULT_GOAL := all
 # Shared build caches require sequential gate execution, even with make -j.
@@ -123,9 +131,20 @@ check-fmt: build $(MDTABLEFIX) ## Verify formatting
 
 lint: lint-python dead-code duplication lint-actions ## Run linters
 
-lint-python: build ## Run Python linters
+# Interrogate rounds its percentage to one decimal, so `--fail-under 100` alone
+# can pass a lone gap in a large repository; fail on any MISSED row as well.
+interrogate: build ## Enforce complete Python docstring coverage
+	@report="$$($(INTERROGATE) $(INTERROGATE_FLAGS) $(INTERROGATE_TARGETS))"; \
+	  status=$$?; \
+	  printf '%s\n' "$$report"; \
+	  test "$$status" -eq 0 || exit "$$status"; \
+	  if printf '%s\n' "$$report" | grep -q '| *MISSED *|'; then \
+	    printf '%s\n' 'interrogate: undocumented definitions remain; see the MISSED rows above' >&2; \
+	    exit 1; \
+	  fi
+
+lint-python: build interrogate ## Run Python linters
 	$(RUFF) check $(PYTHON_TARGETS)
-	$(UV_ENV) $(UV) run interrogate --fail-under 100 $(PYTHON_TARGETS)
 	$(PYLINT) $(PYLINT_TARGETS)
 	$(DF12_PYLINT) $(PYTHON_TARGETS)
 	$(AMBRLEAKS) tests
