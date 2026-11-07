@@ -28,8 +28,9 @@ ACT_IMAGE ?= ghcr.io/catthehacker/ubuntu:act-24.04
 PYTEST_XDIST_WORKERS ?= auto
 # Include tracked and new source anywhere, including hidden action directories.
 PYTHON_TARGETS ?= $(shell git ls-files --cached --others --exclude-standard '*.py' '*.pyi')
-# Named directories, not the file list above: the docstring gate reads each tree
-# whole, and a test checks that every tracked Python directory is named here.
+# Named directories, not the file list above. Interrogate scans each one
+# recursively, subject to its default exclusions, and a test checks that every
+# tracked Python directory is one of these or lies beneath one.
 INTERROGATE_TARGETS ?= pokie scripts tests
 # Level 2 prints a MISSED row per undocumented definition, which the
 # `interrogate` target fails on: the rounded percentage alone can pass a lone gap.
