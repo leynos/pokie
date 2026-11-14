@@ -291,6 +291,8 @@ plan is edited in the same change. Counts compare against the merge base with
   (language semantics, verification, architecture and process, and user
   advocacy). They raised 11 blocking, 35 major, and 30 minor findings, all
   dispositioned in this revision (see `Decision log`).
+- [x] (2026-11-14) Draft pull request opened for review:
+  <https://github.com/leynos/pokie/pull/39>.
 - [ ] Plan approved by the project owner.
 - [ ] EP-M0: entry checks and baseline.
 - [ ] EP-M1 (Track A): register domain, loader, verdict, and scenarios.
