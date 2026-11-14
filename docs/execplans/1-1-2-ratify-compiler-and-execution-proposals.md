@@ -770,20 +770,20 @@ CPython.
 
 ### Axioms
 
-- AX-1: CPython 3.14.x behaves as documented in the Python 3.14 language
+- AXIOM-1: CPython 3.14.x behaves as documented in the Python 3.14 language
   reference for `try`/`finally`, `match`, and `with`, and in the library
   reference for `exec`, `compile`, `pickle`, and `io`. Exercised by every
   in-process sketch and by `PRB-SCOPE-TOPLEVEL`.
-- AX-2: `BaseException` subclasses that are not `Exception` subclasses pass
+- AXIOM-2: `BaseException` subclasses that are not `Exception` subclasses pass
   through `except Exception:` handlers. Exercised by `INV-CTL-1`.
-- AX-3: CPython 3.14 emits `SyntaxWarning` for `break`, `continue`, or
+- AXIOM-3: CPython 3.14 emits `SyntaxWarning` for `break`, `continue`, or
   `return` that exits a `finally` block (PEP 765, Final). Exercised by
   `PRB-CTL-SWALLOW`.
-- AX-4: the POSIX awk specification (Open Group Base Specifications, Issue
+- AXIOM-4: the POSIX awk specification (Open Group Base Specifications, Issue
   8) defines `exit` in BEGIN, `next` in BEGIN/END as undefined, and the
   availability of `$0`, `NF`, and `NR` in END. This is cited prior art, not
   executed.
-- AX-5: `ProcessRunner` runs probes as documented in
+- AXIOM-5: `ProcessRunner` runs probes as documented in
   `docs/developers-guide.md` "Corpus harness". Its own tests already exercise
   the boundary.
 
