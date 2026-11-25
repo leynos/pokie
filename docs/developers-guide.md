@@ -350,7 +350,7 @@ show these diagnostics alongside passing jobs:
 ## Shared spelling configuration
 
 Run `make spelling` to enforce en-GB-oxendict spelling in Markdown and code.
-The shared `typos-config-builder` v0.1.2 gate regenerates `typos.toml` from the
+The shared `typos-config-builder` v0.1.4 gate regenerates `typos.toml` from the
 live estate dictionary and the `typos.local.toml` overlay, then checks the
 whole repository with `--scope all`. A word added to the shared dictionary
 therefore needs no change here, and `typos.toml` must never be drift checked in

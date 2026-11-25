@@ -99,8 +99,8 @@
 
   - **Markdown files (`.md` only):**
     - **Linting:** Passes markdown lint checks (`make markdownlint`).
-    - **Spelling:** Passes the en-GB-oxendict gate (`make spelling`), which
-      checks Markdown and code.
+    - **Spelling:** Passes the en-GB-oxendict spelling gate, which checks
+      Markdown and code (see Spelling below).
     - **Mermaid diagrams:** Passes validation using nixie (`make nixie`).
 - **Committing:**
   - Only changes that meet all quality gates should be committed.
@@ -174,15 +174,6 @@
 
 - Validate Markdown files using `make markdownlint`. This also runs the
   en-GB-oxendict spelling gate.
-- Enforce spelling with `make spelling`. The shared typos-config-builder v0.1.2
-  regenerates `typos.toml` from the live shared dictionary and the
-  `typos.local.toml` overlay, then checks the whole repository with
-  `--scope all`, including Markdown and code. `typos.toml` is never drift
-  checked in continuous integration.
-- Generic Oxford stems belong in the shared dictionary in
-  `leynos/agent-helper-scripts`. Narrow project-specific accepted words,
-  patterns, and exclusions belong in `typos.local.toml`; never edit generated
-  `typos.toml` by hand.
 - Run `make fmt` after documentation changes to format Markdown and fix table
   markup.
 - Validate Mermaid diagrams in Markdown by running `make nixie`.
@@ -236,3 +227,19 @@ Additional docs:
 
 These practices help maintain a high-quality codebase and facilitate
 collaboration.
+
+<!-- typos-config-builder:agents-md:start -->
+
+## Spelling
+
+- `make spelling` runs the pinned `typos-config-builder gate`, which
+  regenerates `typos.toml` from the shared en-GB-oxendict dictionary and
+  `typos.local.toml`, then checks spelling and the shared phrase corrections.
+- `typos.toml` is generated: never edit it by hand. Put narrow
+  repository-specific exceptions in `typos.local.toml`, as exact or full-line
+  patterns rather than bare accepted words.
+- When `make spelling` changes `typos.toml`, commit the regenerated file. If
+  the change is unrelated to your work, commit it in a separate base pull
+  request and stack your branch on it, so each review diff stays focused.
+
+<!-- typos-config-builder:agents-md:end -->
