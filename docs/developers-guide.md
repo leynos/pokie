@@ -350,13 +350,14 @@ show these diagnostics alongside passing jobs:
 ## Shared spelling configuration
 
 Run `make spelling` to enforce en-GB-oxendict spelling in Markdown and code.
-The shared `typos-config-builder` v0.1.2 gate regenerates `typos.toml` from the
+The shared `typos-config-builder` v0.1.4 gate regenerates `typos.toml` from the
 live estate dictionary and the `typos.local.toml` overlay, then checks the
 whole repository with `--scope all`. A word added to the shared dictionary
-therefore needs no change here, and `typos.toml` must never be drift checked in
-continuous integration. It is a generated artefact and is ignored by Git, as is
-the local cache that keeps the gate usable when the authority is temporarily
-unreachable. Add only narrow project-specific terms and exclusions to
+needs no manual change to the overlay here, and `typos.toml` must never be
+drift checked in continuous integration. It is a generated artefact: when a
+dictionary change alters it, commit the regenerated file; the local cache that
+keeps the gate usable when the authority is temporarily unreachable is ignored
+by Git. Add only narrow project-specific terms and exclusions to
 `typos.local.toml`; its `markdown_only` patterns apply only to Markdown, so
 they do not narrow code checking. Never edit generated `typos.toml` by hand.
 

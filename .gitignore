@@ -209,9 +209,6 @@ target/
 .typos-oxendict-base.json
 .typos-oxendict-base.toml
 
-# Regenerated from the live shared dictionary by every `make spelling` run.
-typos.toml
-
 # Verified Nose detector installed by df12-duplication.
 .tools/
 
