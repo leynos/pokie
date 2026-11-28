@@ -14,7 +14,7 @@ dev = [
     "pip-audit",
     "ruff==0.16.8",
     "df12-python-lints @ git+https://github.com/leynos/df12-python-lints.git@1d6c3bba594651823c9ba8e8b40265cae59a1c52",
-    "cyclopts==4.25.2",
+    "cyclopts==5.5.3",
     "pyyaml>=6.0.3",
     "types-pyyaml",
     "yamllint==1.38.0",
