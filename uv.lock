@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 
 [[package]]
@@ -210,7 +210,7 @@ wheels = [
 [[package]]
 name = "df12-python-lints"
 version = "0.4.0"
-source = { git = "https://github.com/leynos/df12-python-lints.git?rev=v0.4.0#1d6c3bba594651823c9ba8e8b40265cae59a1c52" }
+source = { git = "https://github.com/leynos/df12-python-lints.git?rev=1d6c3bba594651823c9ba8e8b40265cae59a1c52#1d6c3bba594651823c9ba8e8b40265cae59a1c52" }
 dependencies = [
     { name = "pylint" },
 ]
@@ -747,7 +747,7 @@ dev = [
 [package.metadata.requires-dev]
 dev = [
     { name = "cyclopts", specifier = "==4.25.2" },
-    { name = "df12-python-lints", git = "https://github.com/leynos/df12-python-lints.git?rev=v0.4.0" },
+    { name = "df12-python-lints", git = "https://github.com/leynos/df12-python-lints.git?rev=1d6c3bba594651823c9ba8e8b40265cae59a1c52" },
     { name = "hypothesis", specifier = ">=6.169.4,<7" },
     { name = "interrogate" },
     { name = "pip-audit" },

@@ -12,7 +12,9 @@ accepted = []
 
 [patterns]
 # The standard terminal-colour environment variable is an external API.
-ignore = ['\bNO_COLOR\b']
+# The vendored uv_gate.py lists uv's short flags (-U, -P, -n) as the string
+# "UPn"; the file is byte-for-byte canonical, so exempt that one line.
+ignore = ['\bNO_COLOR\b', '(?m)^FORBIDDEN_SHORT = "UPn"$']
 markdown_only = [
   # Inline code spans were masked by the previous dictionary snapshot; kept
   # until the shared dictionary rules on it.

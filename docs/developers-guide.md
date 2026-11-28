@@ -74,6 +74,20 @@ Makefile, development dependencies, and Continuous Integration (CI). Bump
 either deliberately and update all locations together, then resolve any new
 diagnostics in the same change.
 
+Every uv call but the spelling builder's goes through the vendored
+`scripts/uv_gate.py` helper (`UV_GATE`), which `make` runs with `python3` 3.9
+or newer. It finds `uv` on `PATH` (outside `~/.lody`), uses the global uv cache
+and runs offline first with at most one online attempt; there is no `UV`
+override. `make build` runs `prepare`, so a stale `uv.lock` fails the build
+instead of being rewritten. `scripts/uv_gate.py` is the shared-actions helper
+copied byte for byte: update it by copying the canonical file, never by editing
+it, and it is excluded from the Python targets and from the duplication gate. A
+`uv` that reports only `Git operation failed` for a Git source missing from the
+cache is not retried online by the helper: warm the cache once with
+`uv tool run` on that source. The helper was verified here with uv 0.13.7,
+which names the offline reason for a cold cache; an older uv needs that warm-up
+before the first `make` run.
+
 Mutation runs copy `scripts/`, `.github/`, `Makefile`, `pyproject.toml`,
 `docs/`, and the committed coverage baseline through `[tool.mutmut] also_copy`
 so the tooling-contract tests retain their inputs in the isolated mutation tree.

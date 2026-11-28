@@ -2,7 +2,7 @@
 # commit, so a fix is a pin bump. `.github/cv005.toml` holds this repository's
 # only parameters.
 CV005_CONTRACTS_REF ?= 5a99aed78ce68dcebd3052b75c31e6f173162b1e
-CV005_CONTRACTS = $(UV_ENV) $(UV) tool run --python 3.13 --from 'git+https://github.com/leynos/shared-actions@$(CV005_CONTRACTS_REF)\#subdirectory=packages/cv005-contracts' cv005-contracts
+CV005_CONTRACTS = $(UV_ENV) $(UV_GATE) tool --python 3.13 --from 'git+https://github.com/leynos/shared-actions@$(CV005_CONTRACTS_REF)\#subdirectory=packages/cv005-contracts' -- cv005-contracts
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
 MDTABLEFIX ?= mdtablefix
@@ -13,12 +13,25 @@ ACTIONLINT ?= actionlint
 ACTION_VALIDATOR ?= action-validator
 export PATH := $(HOME)/.local/bin:$(HOME)/.bun/bin:$(PATH)
 UV ?= $(shell command -v uv 2>/dev/null || printf '%s/.local/bin/uv' "$$HOME")
+# Every uv call but the spelling builder's goes through the vendored helper,
+# which cleans the environment, uses the global uv cache, runs offline first and
+# goes online at most once. The builder runs directly at its release tag,
+# because the spelling baseline requires that form and the helper accepts only
+# a full commit. See
+# https://github.com/leynos/shared-actions/tree/main/uv_gate for the contract.
+# `scripts/uv_gate.py` is the shared-actions helper, vendored byte for byte, so
+# update it by copying the canonical file, never by editing it here. The helper
+# finds uv on PATH (outside ~/.lody, which it removes), so there is no UV
+# override: put the uv you want first. It needs python3 3.9 or newer. A uv
+# that reports only `Git operation failed` for a Git source missing from the
+# cache is not retried online: warm the cache once with `uv tool run`.
+UV_GATE ?= python3 scripts/uv_gate.py
 USER_CARGO := $(HOME)/.cargo/bin/cargo
 USER_WHITAKER := $(HOME)/.local/bin/whitaker
 USER_BIN_PATH := $(HOME)/.cargo/bin:$(HOME)/.local/bin:$(HOME)/.bun/bin
 TOOLS = $(MDTABLEFIX) $(MDLINT) $(ACTIONLINT) $(ACTION_VALIDATOR)
 VENV_TOOLS = pytest
-UV_ENV = PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 UV_CACHE_DIR=.uv-cache UV_TOOL_DIR=.uv-tools
+UV_ENV = PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
 TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.4
 TYPOS_CONFIG_BUILDER = env $(UV_ENV) $(UV) tool run --python 3.14 --from \
 	"git+https://github.com/leynos/typos-config-builder.git@$(TYPOS_CONFIG_BUILDER_VERSION)" \
@@ -27,7 +40,9 @@ WITH_ACT ?= 0
 ACT_IMAGE ?= ghcr.io/catthehacker/ubuntu:act-24.04
 PYTEST_XDIST_WORKERS ?= auto
 # Include tracked and new source anywhere, including hidden action directories.
-PYTHON_TARGETS ?= $(shell git ls-files --cached --others --exclude-standard '*.py' '*.pyi')
+# The vendored uv helper is excluded: it is canonical, so ruff and pylint must
+# not reformat or rewrite it.
+PYTHON_TARGETS ?= $(filter-out scripts/uv_gate.py,$(shell git ls-files --cached --others --exclude-standard '*.py' '*.pyi'))
 # Named directories, not the file list above. Interrogate scans each one
 # recursively, subject to its default exclusions, and a test checks that every
 # tracked Python directory is one of these or lies beneath one.
@@ -35,22 +50,23 @@ INTERROGATE_TARGETS ?= pokie scripts tests
 # Level 2 prints a MISSED row per undocumented definition, which the
 # `interrogate` target fails on: the rounded percentage alone can pass a lone gap.
 INTERROGATE_FLAGS ?= -vv --fail-under 100
-INTERROGATE ?= $(UV_ENV) $(UV) run interrogate
+INTERROGATE ?= $(UV_ENV) $(UV_GATE) run -- interrogate
 RUFF_VERSION ?= 0.16.8
 TY_VERSION ?= 0.0.56
-RUFF = $(UV_ENV) $(UV) tool run --python 3.14 --from 'ruff==$(RUFF_VERSION)' ruff
-TY = $(UV_ENV) $(UV) tool run --python 3.14 --from 'ty==$(TY_VERSION)' ty
-DF12_PYTHON_LINTS_REF ?= v0.4.0
+RUFF = $(UV_ENV) $(UV_GATE) tool --python 3.14 --from 'ruff==$(RUFF_VERSION)' -- ruff
+TY = $(UV_ENV) $(UV_GATE) tool --python 3.14 --from 'ty==$(TY_VERSION)' -- ty
+# The helper accepts only a full commit; this is the v0.4.0 tag.
+DF12_PYTHON_LINTS_REF ?= 1d6c3bba594651823c9ba8e8b40265cae59a1c52
 DF12_PYTHON_LINTS = git+https://github.com/leynos/df12-python-lints.git@$(DF12_PYTHON_LINTS_REF)
 DF12_PYLINT_MESSAGES = R9101,C9102,R9103,R9104,C9105,C9106,C9107,R9108,R9109,R9110,R9111,R9112,C9112
-DF12_PYLINT = $(UV_ENV) $(UV) run pylint --disable=all --load-plugins=df12_python_lints --enable=$(DF12_PYLINT_MESSAGES)
-AMBRLEAKS = $(UV_ENV) $(UV) run ambrleaks
-SKYLOS = $(UV_ENV) $(UV) tool run --python 3.14 --from 'df12-python-lints[skylos] @ $(DF12_PYTHON_LINTS)' df12-skylos
-DUPLICATION_GATE = $(UV_ENV) $(UV) tool run --python 3.14 --from '$(DF12_PYTHON_LINTS)' df12-duplication
+DF12_PYLINT = $(UV_ENV) $(UV_GATE) run -- pylint --disable=all --load-plugins=df12_python_lints --enable=$(DF12_PYLINT_MESSAGES)
+AMBRLEAKS = $(UV_ENV) $(UV_GATE) run -- ambrleaks
+SKYLOS = $(UV_ENV) $(UV_GATE) tool --python 3.14 --from 'df12-python-lints[skylos] @ $(DF12_PYTHON_LINTS)' -- df12-skylos
+DUPLICATION_GATE = $(UV_ENV) $(UV_GATE) tool --python 3.14 --from '$(DF12_PYTHON_LINTS)' -- df12-duplication
 PYLINT_PYTHON ?= pypy@3.12
 PYLINT_VERSION ?= 4.0.9
 PYLINT_TARGETS ?= $(PYTHON_TARGETS)
-PYLINT = $(UV_ENV) $(UV) tool run --managed-python --python $(PYLINT_PYTHON) --from 'pylint==$(PYLINT_VERSION)' pylint
+PYLINT = $(UV_ENV) $(UV_GATE) tool --managed-python --python $(PYLINT_PYTHON) --from 'pylint==$(PYLINT_VERSION)' -- pylint
 
 
 .PHONY: help all audit clean build build-release lint lint-python fmt check-fmt \
@@ -63,23 +79,11 @@ PYLINT = $(UV_ENV) $(UV) tool run --managed-python --python $(PYLINT_PYTHON) --f
 
 all: build check-fmt lint typecheck test markdownlint nixie audit validate test-workflow-contracts
 
-define ensure_uv
-	@command -v $(UV) >/dev/null 2>&1 || { \
-	  printf "Error: uv is required, but '%s' was not found or is not executable\n" "$(UV)" >&2; \
-	  exit 1; \
-	}
-endef
-
-.venv: pyproject.toml
-	$(call ensure_uv)
-	$(UV_ENV) $(UV) venv --clear
-
-build: .venv ## Build virtual-env and install deps
-	$(UV_ENV) $(UV) sync --group dev
+build: ## Build virtual-env and install deps
+	$(UV_ENV) $(UV_GATE) prepare --group dev
 
 build-release: ## Build artefacts (sdist & wheel)
-	$(call ensure_uv)
-	$(UV_ENV) $(UV) run python -m build --sdist --wheel
+	$(UV_ENV) $(UV_GATE) run -- python -m build --sdist --wheel
 
 clean: ## Remove build artefacts
 	rm -rf build dist *.egg-info \
@@ -96,7 +100,7 @@ define ensure_tool
 endef
 
 define ensure_tool_venv
-	@$(UV_ENV) $(UV) run which $(1) >/dev/null 2>&1 || { \
+	@$(UV_ENV) $(UV_GATE) run -- which $(1) >/dev/null 2>&1 || { \
 	  printf "Error: '%s' is required in the virtualenv, but is not installed\n" "$(1)" >&2; \
 	  exit 1; \
 	}
@@ -155,7 +159,7 @@ typecheck: build ## Run typechecking
 	$(TY) check $(PYTHON_TARGETS)
 
 audit: build ## Audit dependencies for known vulnerabilities
-	$(UV_ENV) $(UV) run pip-audit
+	$(UV_ENV) $(UV_GATE) run -- pip-audit
 
 
 markdownlint: $(MDLINT) ## Lint Markdown files and spelling
@@ -170,7 +174,7 @@ nixie: ## Validate Mermaid diagrams
 	$(NIXIE) --no-sandbox
 
 test: build $(VENV_TOOLS) ## Run tests
-	$(UV_ENV) $(UV) run pytest -v -n $(PYTEST_XDIST_WORKERS)
+	$(UV_ENV) $(UV_GATE) run -- pytest -v -n $(PYTEST_XDIST_WORKERS)
 	$(if $(filter 1 true yes on,$(WITH_ACT)),+$(MAKE) test-act,)
 
 # Static workflow checks belong to lint-actions. act only exercises a wheel
@@ -184,7 +188,7 @@ validate: ## Validate the Makefile
 
 dead-code: ## Run the shared strict Skylos gate
 	$(SKYLOS) check --repository .
-	$(UV_ENV) $(UV) run vulture tests
+	$(UV_ENV) $(UV_GATE) run -- vulture tests
 
 install-nose: ## Install the pinned detector with the shared verified installer
 	$(DUPLICATION_GATE) install --repository .
@@ -194,13 +198,13 @@ duplication: install-nose ## Check every duplication family with the shared gate
 
 lint-actions: build $(ACTIONLINT) $(ACTION_VALIDATOR) ## Validate workflows and local actions
 	$(call ensure_tool,shellcheck)
-	$(UV_ENV) $(UV) run yamllint --strict .github
+	$(UV_ENV) $(UV_GATE) run -- yamllint --strict .github
 	$(ACTIONLINT)
 	@set -eu; workflow=$$(mktemp /tmp/pokie-action-XXXXXX.yml); \
 	trap 'rm -f "$$workflow"' EXIT; find .github/actions -type f \( -name action.yml -o -name action.yaml \) -print | \
 	while IFS= read -r action; do \
 	  $(ACTION_VALIDATOR) "$$action"; \
-	  $(UV_ENV) $(UV) run --script scripts/action_workflow.py "$$action" > "$$workflow"; \
+	  $(UV_ENV) $(UV_GATE) run -- python scripts/action_workflow.py "$$action" > "$$workflow"; \
 	  if [ -s "$$workflow" ]; then \
 	    $(ACTIONLINT) -stdin-filename "$$action" - < "$$workflow"; \
 	  fi; \
