@@ -79,19 +79,10 @@ PYLINT = $(UV_ENV) $(UV_GATE) tool --managed-python --python $(PYLINT_PYTHON) --
 
 all: build check-fmt lint typecheck test markdownlint nixie audit validate test-workflow-contracts
 
-define ensure_uv
-	@command -v $(UV) >/dev/null 2>&1 || { \
-	  printf "Error: uv is required, but '%s' was not found or is not executable\n" "$(UV)" >&2; \
-	  exit 1; \
-	}
-endef
-
 build: ## Build virtual-env and install deps
-	$(call ensure_uv)
 	$(UV_ENV) $(UV_GATE) prepare --group dev
 
 build-release: ## Build artefacts (sdist & wheel)
-	$(call ensure_uv)
 	$(UV_ENV) $(UV_GATE) run -- python -m build --sdist --wheel
 
 clean: ## Remove build artefacts
